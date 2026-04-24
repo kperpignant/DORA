@@ -32,6 +32,8 @@ export default defineSchema({
     // Type-specific fields
     estimate: v.optional(v.string()), // For tasks
     stepsToReproduce: v.optional(v.string()), // For bugs
+    expectedResult: v.optional(v.string()), // For bugs: what should happen
+    actualResult: v.optional(v.string()), // For bugs: what actually happens
     severity: v.optional(v.union(
       v.literal("critical"),
       v.literal("major"),

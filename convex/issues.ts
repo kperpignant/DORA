@@ -110,6 +110,8 @@ export const create = mutation({
     priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
     estimate: v.optional(v.string()),
     stepsToReproduce: v.optional(v.string()),
+    expectedResult: v.optional(v.string()),
+    actualResult: v.optional(v.string()),
     severity: v.optional(v.union(
       v.literal("critical"),
       v.literal("major"),
@@ -143,6 +145,8 @@ export const create = mutation({
       priority: args.priority,
       estimate: args.type === "task" ? args.estimate : undefined,
       stepsToReproduce: isBug ? args.stepsToReproduce : undefined,
+      expectedResult: isBug ? args.expectedResult : undefined,
+      actualResult: isBug ? args.actualResult : undefined,
       severity: isBug ? args.severity : undefined,
       tags: args.tags,
       assigneeId: args.assigneeId,
@@ -176,6 +180,8 @@ export const update = mutation({
     priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"))),
     estimate: v.optional(v.string()),
     stepsToReproduce: v.optional(v.string()),
+    expectedResult: v.optional(v.string()),
+    actualResult: v.optional(v.string()),
     severity: v.optional(v.union(
       v.literal("critical"),
       v.literal("major"),
@@ -199,6 +205,8 @@ export const update = mutation({
     if (updates.priority !== undefined) patchData.priority = updates.priority;
     if (updates.estimate !== undefined) patchData.estimate = updates.estimate;
     if (updates.stepsToReproduce !== undefined) patchData.stepsToReproduce = updates.stepsToReproduce;
+    if (updates.expectedResult !== undefined) patchData.expectedResult = updates.expectedResult;
+    if (updates.actualResult !== undefined) patchData.actualResult = updates.actualResult;
     if (updates.severity !== undefined) patchData.severity = updates.severity;
     if (updates.tags !== undefined) patchData.tags = updates.tags;
     if (updates.assigneeId !== undefined) patchData.assigneeId = updates.assigneeId;
@@ -210,6 +218,8 @@ export const update = mutation({
       updates.title !== undefined ||
       updates.description !== undefined ||
       updates.stepsToReproduce !== undefined ||
+      updates.expectedResult !== undefined ||
+      updates.actualResult !== undefined ||
       updates.tags !== undefined;
     if (textChanged) {
       await ctx.scheduler.runAfter(0, internal.embeddings.embedIssue, {

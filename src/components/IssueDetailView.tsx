@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Doc } from "../../convex/_generated/dataModel";
 import { StatusBadge } from "./StatusBadge";
@@ -24,6 +24,7 @@ interface IssueDetailViewProps {
 export function IssueDetailView({ issue, projectKey, onBack }: IssueDetailViewProps) {
   const [isEditing, setIsEditing] = useState(false);
   const deleteIssue = useMutation(api.issues.remove);
+  const live = useQuery(api.issues.get, { id: issue._id });
 
   const handleDelete = async () => {
     if (confirm("Are you sure you want to delete this issue?")) {
@@ -35,6 +36,19 @@ export function IssueDetailView({ issue, projectKey, onBack }: IssueDetailViewPr
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleString();
   };
+
+  if (live === null) {
+    return (
+      <div className="issue-detail">
+        <p className="issue-detail-error">This issue no longer exists or was deleted.</p>
+        <button type="button" className="btn btn-secondary" onClick={onBack}>
+          ← Back to Issues
+        </button>
+      </div>
+    );
+  }
+
+  const displayIssue = live ?? issue;
 
   return (
     <div className="issue-detail">
@@ -57,28 +71,28 @@ export function IssueDetailView({ issue, projectKey, onBack }: IssueDetailViewPr
           <div className="issue-detail-content">
             <div className="issue-detail-top">
               <span className="issue-detail-id">
-                {projectKey}-{issue.issueNumber}
+                {projectKey}-{displayIssue.issueNumber}
               </span>
-              <TypeBadge type={issue.type} />
+              <TypeBadge type={displayIssue.type} />
             </div>
 
-            <h1 className="issue-detail-title">{issue.title}</h1>
+            <h1 className="issue-detail-title">{displayIssue.title}</h1>
 
             <div className="issue-detail-badges">
-              <StatusBadge status={issue.status} />
-              <PriorityBadge priority={issue.priority} />
-              {issue.type === "bug" && issue.severity && (
-                <SeverityBadge severity={issue.severity} />
+              <StatusBadge status={displayIssue.status} />
+              <PriorityBadge priority={displayIssue.priority} />
+              {displayIssue.type === "bug" && displayIssue.severity && (
+                <SeverityBadge severity={displayIssue.severity} />
               )}
             </div>
 
             <div className="issue-detail-section">
               <h3>Assignee</h3>
               <div className="issue-detail-assignee">
-                {issue.assignee ? (
+                {displayIssue.assignee ? (
                   <UserAvatar
-                    name={issue.assignee.name}
-                    image={issue.assignee.image}
+                    name={displayIssue.assignee.name}
+                    image={displayIssue.assignee.image}
                     size="medium"
                     showName
                   />
@@ -91,8 +105,8 @@ export function IssueDetailView({ issue, projectKey, onBack }: IssueDetailViewPr
             <div className="issue-detail-section">
               <h3>Tags</h3>
               <div className="issue-detail-tags">
-                {issue.tags && issue.tags.length > 0 ? (
-                  issue.tags.map((tag) => <TagBadge key={tag} tag={tag} />)
+                {displayIssue.tags && displayIssue.tags.length > 0 ? (
+                  displayIssue.tags.map((tag) => <TagBadge key={tag} tag={tag} />)
                 ) : (
                   <span className="empty-text">No tags</span>
                 )}
@@ -102,27 +116,27 @@ export function IssueDetailView({ issue, projectKey, onBack }: IssueDetailViewPr
             <div className="issue-detail-section">
               <h3>Description</h3>
               <div className="issue-detail-description">
-                {issue.description || <span className="empty-text">No description provided</span>}
+                {displayIssue.description || <span className="empty-text">No description provided</span>}
               </div>
             </div>
 
             {/* Type-specific sections */}
-            {issue.type === "task" && (
+            {displayIssue.type === "task" && (
               <div className="issue-detail-section">
                 <h3>Estimate</h3>
                 <div className="issue-detail-estimate">
-                  {issue.estimate || <span className="empty-text">No estimate provided</span>}
+                  {displayIssue.estimate || <span className="empty-text">No estimate provided</span>}
                 </div>
               </div>
             )}
 
-            {issue.type === "bug" && (
+            {displayIssue.type === "bug" && (
               <>
                 <div className="issue-detail-section">
                   <h3>Severity</h3>
                   <div className="issue-detail-severity">
-                    {issue.severity ? (
-                      <SeverityBadge severity={issue.severity} />
+                    {displayIssue.severity ? (
+                      <SeverityBadge severity={displayIssue.severity} />
                     ) : (
                       <span className="empty-text">No severity set</span>
                     )}
@@ -131,10 +145,30 @@ export function IssueDetailView({ issue, projectKey, onBack }: IssueDetailViewPr
                 <div className="issue-detail-section">
                   <h3>Steps to Reproduce</h3>
                   <div className="issue-detail-steps">
-                    {issue.stepsToReproduce ? (
-                      <pre>{issue.stepsToReproduce}</pre>
+                    {displayIssue.stepsToReproduce ? (
+                      <pre>{displayIssue.stepsToReproduce}</pre>
                     ) : (
                       <span className="empty-text">No steps provided</span>
+                    )}
+                  </div>
+                </div>
+                <div className="issue-detail-section">
+                  <h3>Expected result</h3>
+                  <div className="issue-detail-result">
+                    {displayIssue.expectedResult ? (
+                      <pre>{displayIssue.expectedResult}</pre>
+                    ) : (
+                      <span className="empty-text">Not specified</span>
+                    )}
+                  </div>
+                </div>
+                <div className="issue-detail-section">
+                  <h3>Actual result</h3>
+                  <div className="issue-detail-result">
+                    {displayIssue.actualResult ? (
+                      <pre>{displayIssue.actualResult}</pre>
+                    ) : (
+                      <span className="empty-text">Not specified</span>
                     )}
                   </div>
                 </div>
@@ -144,27 +178,27 @@ export function IssueDetailView({ issue, projectKey, onBack }: IssueDetailViewPr
             <div className="issue-detail-meta">
               <div className="meta-item">
                 <span className="meta-label">Created:</span>
-                <span className="meta-value">{formatDate(issue.createdAt)}</span>
+                <span className="meta-value">{formatDate(displayIssue.createdAt)}</span>
               </div>
               <div className="meta-item">
                 <span className="meta-label">Updated:</span>
-                <span className="meta-value">{formatDate(issue.updatedAt)}</span>
+                <span className="meta-value">{formatDate(displayIssue.updatedAt)}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {issue.type === "bug" && (
+        {displayIssue.type === "bug" && (
           <aside className="issue-detail-aside">
-            <AiSummaryPanel issue={issue} />
+            <AiSummaryPanel issue={displayIssue} />
           </aside>
         )}
       </div>
 
       {isEditing && (
         <IssueForm
-          projectId={issue.projectId}
-          issue={issue}
+          projectId={displayIssue.projectId}
+          issue={displayIssue}
           onClose={() => setIsEditing(false)}
         />
       )}
