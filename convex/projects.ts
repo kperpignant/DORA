@@ -1,6 +1,43 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
+const projectSummaryValidator = v.object({
+  techStack: v.optional(v.string()),
+  targetUsers: v.optional(v.string()),
+  keyFeatures: v.optional(v.string()),
+  knownConstraints: v.optional(v.string()),
+  glossary: v.optional(v.string()),
+});
+
+function normalizeSummary(
+  input: {
+    techStack?: string;
+    targetUsers?: string;
+    keyFeatures?: string;
+    knownConstraints?: string;
+    glossary?: string;
+  }
+) {
+  const techStack = input.techStack?.trim();
+  const targetUsers = input.targetUsers?.trim();
+  const keyFeatures = input.keyFeatures?.trim();
+  const knownConstraints = input.knownConstraints?.trim();
+  const glossary = input.glossary?.trim();
+  const out: {
+    techStack?: string;
+    targetUsers?: string;
+    keyFeatures?: string;
+    knownConstraints?: string;
+    glossary?: string;
+  } = {};
+  if (techStack) out.techStack = techStack;
+  if (targetUsers) out.targetUsers = targetUsers;
+  if (keyFeatures) out.keyFeatures = keyFeatures;
+  if (knownConstraints) out.knownConstraints = knownConstraints;
+  if (glossary) out.glossary = glossary;
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 export const list = query({
   args: {},
   handler: async (ctx) => {
@@ -30,6 +67,7 @@ export const create = mutation({
     name: v.string(),
     key: v.string(),
     description: v.optional(v.string()),
+    summary: v.optional(projectSummaryValidator),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
@@ -45,6 +83,7 @@ export const create = mutation({
       name: args.name,
       key: args.key.toUpperCase(),
       description: args.description,
+      summary: args.summary ? normalizeSummary(args.summary) : undefined,
       createdAt: Date.now(),
     });
   },
@@ -55,13 +94,22 @@ export const update = mutation({
     id: v.id("projects"),
     name: v.optional(v.string()),
     description: v.optional(v.string()),
+    summary: v.optional(projectSummaryValidator),
   },
   handler: async (ctx, args) => {
-    const { id, ...updates } = args;
-    const filteredUpdates = Object.fromEntries(
-      Object.entries(updates).filter(([_, value]) => value !== undefined)
-    );
-    await ctx.db.patch(id, filteredUpdates);
+    const { id, summary, name, description } = args;
+    const patch: {
+      name?: string;
+      description?: string;
+      summary?: ReturnType<typeof normalizeSummary>;
+    } = {};
+    if (name !== undefined) patch.name = name;
+    if (description !== undefined) patch.description = description;
+    if (summary !== undefined) {
+      patch.summary = normalizeSummary(summary);
+    }
+    if (Object.keys(patch).length === 0) return;
+    await ctx.db.patch(id, patch);
   },
 });
 

@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 
 export const listByProject = query({
   args: { projectId: v.id("projects") },
@@ -131,7 +132,8 @@ export const create = mutation({
     );
 
     const now = Date.now();
-    return await ctx.db.insert("issues", {
+    const isBug = args.type === "bug";
+    const id = await ctx.db.insert("issues", {
       projectId: args.projectId,
       issueNumber: maxNumber + 1,
       type: args.type,
@@ -140,13 +142,22 @@ export const create = mutation({
       status: args.status,
       priority: args.priority,
       estimate: args.type === "task" ? args.estimate : undefined,
-      stepsToReproduce: args.type === "bug" ? args.stepsToReproduce : undefined,
-      severity: args.type === "bug" ? args.severity : undefined,
+      stepsToReproduce: isBug ? args.stepsToReproduce : undefined,
+      severity: isBug ? args.severity : undefined,
       tags: args.tags,
       assigneeId: args.assigneeId,
+      aiSummary: isBug ? { status: "pending" as const } : undefined,
       createdAt: now,
       updatedAt: now,
     });
+
+    if (isBug) {
+      await ctx.scheduler.runAfter(0, internal.aiSummaries.generate, {
+        issueId: id,
+      });
+    }
+
+    return id;
   },
 });
 

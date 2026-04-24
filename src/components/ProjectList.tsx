@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { ProjectCard } from "./ProjectCard";
+import { ProjectSettingsForm } from "./ProjectSettingsForm";
 
 interface ProjectListProps {
   selectedProjectId: Id<"projects"> | null;
@@ -11,32 +12,9 @@ interface ProjectListProps {
 
 export function ProjectList({ selectedProjectId, onSelectProject }: ProjectListProps) {
   const projects = useQuery(api.projects.list);
-  const createProject = useMutation(api.projects.create);
   const deleteProject = useMutation(api.projects.remove);
 
   const [isCreating, setIsCreating] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newKey, setNewKey] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newName.trim() || !newKey.trim()) return;
-
-    try {
-      await createProject({
-        name: newName.trim(),
-        key: newKey.trim(),
-        description: newDescription.trim() || undefined,
-      });
-      setNewName("");
-      setNewKey("");
-      setNewDescription("");
-      setIsCreating(false);
-    } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to create project");
-    }
-  };
 
   const handleDelete = async (id: Id<"projects">) => {
     if (confirm("Are you sure you want to delete this project and all its issues?")) {
@@ -57,39 +35,10 @@ export function ProjectList({ selectedProjectId, onSelectProject }: ProjectListP
       </div>
 
       {isCreating && (
-        <form className="create-form" onSubmit={handleCreate}>
-          <input
-            type="text"
-            placeholder="Project Name"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            autoFocus
-          />
-          <input
-            type="text"
-            placeholder="Key (e.g., DORA)"
-            value={newKey}
-            onChange={(e) => setNewKey(e.target.value.toUpperCase())}
-            maxLength={10}
-          />
-          <textarea
-            placeholder="Description (optional)"
-            value={newDescription}
-            onChange={(e) => setNewDescription(e.target.value)}
-          />
-          <div className="form-actions">
-            <button type="submit" className="btn btn-primary">
-              Create
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => setIsCreating(false)}
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
+        <ProjectSettingsForm
+          mode="create"
+          onClose={() => setIsCreating(false)}
+        />
       )}
 
       <div className="project-cards">

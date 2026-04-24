@@ -9,6 +9,7 @@ import { SeverityBadge } from "./SeverityBadge";
 import { TagBadge } from "./TagBadge";
 import { UserAvatar } from "./UserAvatar";
 import { IssueForm } from "./IssueForm";
+import { AiSummaryPanel } from "./AiSummaryPanel";
 
 interface IssueWithAssignee extends Doc<"issues"> {
   assignee?: Doc<"users"> | null;
@@ -51,103 +52,113 @@ export function IssueDetailView({ issue, projectKey, onBack }: IssueDetailViewPr
         </div>
       </div>
 
-      <div className="issue-detail-content">
-        <div className="issue-detail-top">
-          <span className="issue-detail-id">
-            {projectKey}-{issue.issueNumber}
-          </span>
-          <TypeBadge type={issue.type} />
-        </div>
+      <div className="issue-detail-layout">
+        <div className="issue-detail-main">
+          <div className="issue-detail-content">
+            <div className="issue-detail-top">
+              <span className="issue-detail-id">
+                {projectKey}-{issue.issueNumber}
+              </span>
+              <TypeBadge type={issue.type} />
+            </div>
 
-        <h1 className="issue-detail-title">{issue.title}</h1>
+            <h1 className="issue-detail-title">{issue.title}</h1>
 
-        <div className="issue-detail-badges">
-          <StatusBadge status={issue.status} />
-          <PriorityBadge priority={issue.priority} />
-          {issue.type === "bug" && issue.severity && (
-            <SeverityBadge severity={issue.severity} />
-          )}
-        </div>
+            <div className="issue-detail-badges">
+              <StatusBadge status={issue.status} />
+              <PriorityBadge priority={issue.priority} />
+              {issue.type === "bug" && issue.severity && (
+                <SeverityBadge severity={issue.severity} />
+              )}
+            </div>
 
-        <div className="issue-detail-section">
-          <h3>Assignee</h3>
-          <div className="issue-detail-assignee">
-            {issue.assignee ? (
-              <UserAvatar
-                name={issue.assignee.name}
-                image={issue.assignee.image}
-                size="medium"
-                showName
-              />
-            ) : (
-              <span className="empty-text">Unassigned</span>
+            <div className="issue-detail-section">
+              <h3>Assignee</h3>
+              <div className="issue-detail-assignee">
+                {issue.assignee ? (
+                  <UserAvatar
+                    name={issue.assignee.name}
+                    image={issue.assignee.image}
+                    size="medium"
+                    showName
+                  />
+                ) : (
+                  <span className="empty-text">Unassigned</span>
+                )}
+              </div>
+            </div>
+
+            <div className="issue-detail-section">
+              <h3>Tags</h3>
+              <div className="issue-detail-tags">
+                {issue.tags && issue.tags.length > 0 ? (
+                  issue.tags.map((tag) => <TagBadge key={tag} tag={tag} />)
+                ) : (
+                  <span className="empty-text">No tags</span>
+                )}
+              </div>
+            </div>
+
+            <div className="issue-detail-section">
+              <h3>Description</h3>
+              <div className="issue-detail-description">
+                {issue.description || <span className="empty-text">No description provided</span>}
+              </div>
+            </div>
+
+            {/* Type-specific sections */}
+            {issue.type === "task" && (
+              <div className="issue-detail-section">
+                <h3>Estimate</h3>
+                <div className="issue-detail-estimate">
+                  {issue.estimate || <span className="empty-text">No estimate provided</span>}
+                </div>
+              </div>
             )}
-          </div>
-        </div>
 
-        <div className="issue-detail-section">
-          <h3>Tags</h3>
-          <div className="issue-detail-tags">
-            {issue.tags && issue.tags.length > 0 ? (
-              issue.tags.map((tag) => <TagBadge key={tag} tag={tag} />)
-            ) : (
-              <span className="empty-text">No tags</span>
+            {issue.type === "bug" && (
+              <>
+                <div className="issue-detail-section">
+                  <h3>Severity</h3>
+                  <div className="issue-detail-severity">
+                    {issue.severity ? (
+                      <SeverityBadge severity={issue.severity} />
+                    ) : (
+                      <span className="empty-text">No severity set</span>
+                    )}
+                  </div>
+                </div>
+                <div className="issue-detail-section">
+                  <h3>Steps to Reproduce</h3>
+                  <div className="issue-detail-steps">
+                    {issue.stepsToReproduce ? (
+                      <pre>{issue.stepsToReproduce}</pre>
+                    ) : (
+                      <span className="empty-text">No steps provided</span>
+                    )}
+                  </div>
+                </div>
+              </>
             )}
-          </div>
-        </div>
 
-        <div className="issue-detail-section">
-          <h3>Description</h3>
-          <div className="issue-detail-description">
-            {issue.description || <span className="empty-text">No description provided</span>}
-          </div>
-        </div>
-
-        {/* Type-specific sections */}
-        {issue.type === "task" && (
-          <div className="issue-detail-section">
-            <h3>Estimate</h3>
-            <div className="issue-detail-estimate">
-              {issue.estimate || <span className="empty-text">No estimate provided</span>}
+            <div className="issue-detail-meta">
+              <div className="meta-item">
+                <span className="meta-label">Created:</span>
+                <span className="meta-value">{formatDate(issue.createdAt)}</span>
+              </div>
+              <div className="meta-item">
+                <span className="meta-label">Updated:</span>
+                <span className="meta-value">{formatDate(issue.updatedAt)}</span>
+              </div>
             </div>
           </div>
-        )}
+        </div>
 
         {issue.type === "bug" && (
-          <>
-            <div className="issue-detail-section">
-              <h3>Severity</h3>
-              <div className="issue-detail-severity">
-                {issue.severity ? (
-                  <SeverityBadge severity={issue.severity} />
-                ) : (
-                  <span className="empty-text">No severity set</span>
-                )}
-              </div>
-            </div>
-            <div className="issue-detail-section">
-              <h3>Steps to Reproduce</h3>
-              <div className="issue-detail-steps">
-                {issue.stepsToReproduce ? (
-                  <pre>{issue.stepsToReproduce}</pre>
-                ) : (
-                  <span className="empty-text">No steps provided</span>
-                )}
-              </div>
-            </div>
-          </>
+          <aside className="issue-detail-aside">
+            <AiSummaryPanel issue={issue} />
+          </aside>
         )}
-
-        <div className="issue-detail-meta">
-          <div className="meta-item">
-            <span className="meta-label">Created:</span>
-            <span className="meta-value">{formatDate(issue.createdAt)}</span>
-          </div>
-          <div className="meta-item">
-            <span className="meta-label">Updated:</span>
-            <span className="meta-value">{formatDate(issue.updatedAt)}</span>
-          </div>
-        </div>
       </div>
 
       {isEditing && (

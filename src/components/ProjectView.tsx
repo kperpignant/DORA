@@ -8,6 +8,7 @@ import { IssueDetailView } from "./IssueDetailView";
 import { KanbanBoard } from "./KanbanBoard";
 import { ViewToggle } from "./ViewToggle";
 import { SearchBar } from "./SearchBar";
+import { ProjectSettingsForm } from "./ProjectSettingsForm";
 
 type ViewMode = "list" | "kanban";
 
@@ -25,6 +26,7 @@ export function ProjectView({ projectId }: ProjectViewProps) {
   const [viewingIssue, setViewingIssue] = useState<IssueWithAssignee | null>(null);
   const [isCreatingIssue, setIsCreatingIssue] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showProjectSettings, setShowProjectSettings] = useState(false);
 
   if (project === undefined) {
     return <div className="project-view loading">Loading project...</div>;
@@ -54,6 +56,13 @@ export function ProjectView({ projectId }: ProjectViewProps) {
             <h2>{project.name}</h2>
           </div>
           <div className="project-view-controls">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setShowProjectSettings(true)}
+            >
+              Settings
+            </button>
             <SearchBar
               value={searchQuery}
               onChange={setSearchQuery}
@@ -89,6 +98,14 @@ export function ProjectView({ projectId }: ProjectViewProps) {
         <IssueForm
           projectId={projectId}
           onClose={() => setIsCreatingIssue(false)}
+        />
+      )}
+
+      {showProjectSettings && (
+        <ProjectSettingsForm
+          mode="edit"
+          project={project}
+          onClose={() => setShowProjectSettings(false)}
         />
       )}
     </div>
