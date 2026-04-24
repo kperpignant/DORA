@@ -152,7 +152,7 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
           {anyDiff && (
             <div className="ai-suggestion-banner">
               <span>
-                The agent suggests changes that differ from what's set on this
+                The agent suggests changes that differ from what is set on this
                 issue.
               </span>
               <button
@@ -167,27 +167,39 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
           )}
 
           <div className="ai-summary-suggestions">
+            <p className="ai-summary-apply-hint">
+              Use <strong>Apply</strong> (or <strong>Apply all</strong> above) to
+              copy the agent&rsquo;s values onto the issue.
+            </p>
             <div className="ai-summary-row">
               <span className="ai-summary-label">Suggested severity</span>
               {ai.suggestedSeverity ? (
                 <div className="ai-summary-badges">
                   <SeverityBadge severity={ai.suggestedSeverity} />
-                  {severityDiffers && (
-                    <>
-                      <span className="ai-summary-compare">
-                        (reporter: <SeverityBadge severity={issue.severity!} />)
-                      </span>
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-tiny"
-                        onClick={() =>
-                          guard(() => applySeverity({ issueId: issue._id }))
-                        }
-                        disabled={busy}
-                      >
-                        Apply
-                      </button>
-                    </>
+                  {issue.severity ? (
+                    <span className="ai-summary-compare">
+                      (on issue: <SeverityBadge severity={issue.severity} />)
+                    </span>
+                  ) : (
+                    <span className="ai-summary-compare">
+                      (on issue: <span className="ai-summary-muted">none</span>)
+                    </span>
+                  )}
+                  {severityDiffers ? (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-tiny"
+                      onClick={() =>
+                        guard(() => applySeverity({ issueId: issue._id }))
+                      }
+                      disabled={busy}
+                    >
+                      Apply
+                    </button>
+                  ) : (
+                    <span className="ai-summary-synced" title="Issue already has this value">
+                      On issue
+                    </span>
                   )}
                 </div>
               ) : (
@@ -200,22 +212,24 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
               {ai.suggestedPriority ? (
                 <div className="ai-summary-badges">
                   <PriorityBadge priority={ai.suggestedPriority} />
-                  {priorityDiffers && (
-                    <>
-                      <span className="ai-summary-compare">
-                        (reporter: <PriorityBadge priority={issue.priority} />)
-                      </span>
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-tiny"
-                        onClick={() =>
-                          guard(() => applyPriority({ issueId: issue._id }))
-                        }
-                        disabled={busy}
-                      >
-                        Apply
-                      </button>
-                    </>
+                  <span className="ai-summary-compare">
+                    (on issue: <PriorityBadge priority={issue.priority} />)
+                  </span>
+                  {priorityDiffers ? (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-tiny"
+                      onClick={() =>
+                        guard(() => applyPriority({ issueId: issue._id }))
+                      }
+                      disabled={busy}
+                    >
+                      Apply
+                    </button>
+                  ) : (
+                    <span className="ai-summary-synced" title="Issue already has this value">
+                      On issue
+                    </span>
                   )}
                 </div>
               ) : (
@@ -233,7 +247,7 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
                     size="small"
                     showName
                   />
-                  {assigneeDiffers && (
+                  {assigneeDiffers ? (
                     <button
                       type="button"
                       className="btn btn-secondary btn-tiny"
@@ -242,8 +256,12 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
                       }
                       disabled={busy}
                     >
-                      Assign
+                      Apply
                     </button>
+                  ) : (
+                    <span className="ai-summary-synced" title="Issue already has this assignee">
+                      On issue
+                    </span>
                   )}
                 </div>
                 {ai.suggestedAssigneeReason && (

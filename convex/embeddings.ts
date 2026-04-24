@@ -23,6 +23,8 @@ function buildEmbeddingText(issue: {
   title: string;
   description: string;
   stepsToReproduce?: string;
+  expectedResult?: string;
+  actualResult?: string;
   tags?: string[];
 }): string {
   const parts = [
@@ -31,6 +33,12 @@ function buildEmbeddingText(issue: {
   ];
   if (issue.stepsToReproduce?.trim()) {
     parts.push(`Steps to reproduce: ${issue.stepsToReproduce.trim()}`);
+  }
+  if (issue.expectedResult?.trim()) {
+    parts.push(`Expected result: ${issue.expectedResult.trim()}`);
+  }
+  if (issue.actualResult?.trim()) {
+    parts.push(`Actual result: ${issue.actualResult.trim()}`);
   }
   if (issue.tags?.length) {
     parts.push(`Tags: ${issue.tags.join(", ")}`);
@@ -87,6 +95,8 @@ export const getIssueForEmbedding = internalQuery({
       title: issue.title,
       description: issue.description,
       stepsToReproduce: issue.stepsToReproduce,
+      expectedResult: issue.expectedResult,
+      actualResult: issue.actualResult,
       tags: issue.tags,
     };
   },

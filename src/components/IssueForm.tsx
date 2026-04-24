@@ -32,6 +32,8 @@ export function IssueForm({ projectId, issue, onClose }: IssueFormProps) {
   const [priority, setPriority] = useState<Priority>("medium");
   const [estimate, setEstimate] = useState("");
   const [stepsToReproduce, setStepsToReproduce] = useState("");
+  const [expectedResult, setExpectedResult] = useState("");
+  const [actualResult, setActualResult] = useState("");
   const [severity, setSeverity] = useState<Severity>("major");
   const [tags, setTags] = useState<string[]>([]);
   const [assigneeId, setAssigneeId] = useState<Id<"users"> | null>(null);
@@ -47,6 +49,8 @@ export function IssueForm({ projectId, issue, onClose }: IssueFormProps) {
       setPriority(issue.priority);
       setEstimate(issue.estimate || "");
       setStepsToReproduce(issue.stepsToReproduce || "");
+      setExpectedResult(issue.expectedResult || "");
+      setActualResult(issue.actualResult || "");
       setSeverity(issue.severity || "major");
       setTags(issue.tags || []);
       setAssigneeId(issue.assigneeId || null);
@@ -71,6 +75,8 @@ export function IssueForm({ projectId, issue, onClose }: IssueFormProps) {
         priority,
         estimate: type === "task" ? estimate.trim() || undefined : undefined,
         stepsToReproduce: type === "bug" ? stepsToReproduce.trim() || undefined : undefined,
+        expectedResult: type === "bug" ? expectedResult.trim() || undefined : undefined,
+        actualResult: type === "bug" ? actualResult.trim() || undefined : undefined,
         severity: type === "bug" ? severity : undefined,
         tags: tags.length > 0 ? tags : undefined,
         assigneeId: assigneeId || undefined,
@@ -85,6 +91,8 @@ export function IssueForm({ projectId, issue, onClose }: IssueFormProps) {
         priority,
         estimate: type === "task" ? estimate.trim() || undefined : undefined,
         stepsToReproduce: type === "bug" ? stepsToReproduce.trim() || undefined : undefined,
+        expectedResult: type === "bug" ? expectedResult.trim() || undefined : undefined,
+        actualResult: type === "bug" ? actualResult.trim() || undefined : undefined,
         severity: type === "bug" ? severity : undefined,
         tags: tags.length > 0 ? tags : undefined,
         assigneeId: assigneeId || undefined,
@@ -183,6 +191,26 @@ export function IssueForm({ projectId, issue, onClose }: IssueFormProps) {
                   onChange={(e) => setStepsToReproduce(e.target.value)}
                   placeholder="1. Go to...&#10;2. Click on...&#10;3. See error..."
                   rows={4}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="expectedResult">Expected result</label>
+                <textarea
+                  id="expectedResult"
+                  value={expectedResult}
+                  onChange={(e) => setExpectedResult(e.target.value)}
+                  placeholder="What should have happened"
+                  rows={2}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="actualResult">Actual result</label>
+                <textarea
+                  id="actualResult"
+                  value={actualResult}
+                  onChange={(e) => setActualResult(e.target.value)}
+                  placeholder="What happened instead"
+                  rows={2}
                 />
               </div>
             </>

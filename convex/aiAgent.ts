@@ -75,6 +75,8 @@ export const getIssueByNumberInternal = internalQuery({
       severity: issue.severity,
       tags: issue.tags,
       stepsToReproduce: issue.stepsToReproduce,
+      expectedResult: issue.expectedResult,
+      actualResult: issue.actualResult,
       assigneeName: assignee?.name ?? null,
     };
   },
@@ -401,6 +403,8 @@ async function toolGetIssue(
     severity: issue.severity ?? null,
     tags: issue.tags ?? [],
     steps_to_reproduce: issue.stepsToReproduce ?? null,
+    expected_result: issue.expectedResult ?? null,
+    actual_result: issue.actualResult ?? null,
     assignee: issue.assigneeName,
   };
 }
@@ -536,6 +540,8 @@ function buildUserPrompt(
     severity?: "critical" | "major" | "minor" | "trivial";
     tags?: string[];
     stepsToReproduce?: string;
+    expectedResult?: string;
+    actualResult?: string;
   }
 ): string {
   const lines: string[] = [
@@ -566,6 +572,12 @@ function buildUserPrompt(
     "",
     "## Steps to reproduce",
     issue.stepsToReproduce?.trim() || "(none)",
+    "",
+    "## Expected result",
+    issue.expectedResult?.trim() || "(none)",
+    "",
+    "## Actual result",
+    issue.actualResult?.trim() || "(none)",
     "",
     "Begin by searching for similar past issues."
   );
@@ -709,6 +721,8 @@ export async function runTriageAgent(args: {
         severity: issue.severity,
         tags: issue.tags,
         stepsToReproduce: issue.stepsToReproduce,
+        expectedResult: issue.expectedResult,
+        actualResult: issue.actualResult,
       }),
     },
   ];
