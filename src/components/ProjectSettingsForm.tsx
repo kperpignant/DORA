@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Doc } from "../../convex/_generated/dataModel";
 
@@ -18,6 +18,13 @@ export function ProjectSettingsForm({
 }: ProjectSettingsFormProps) {
   const createProject = useMutation(api.projects.create);
   const updateProject = useMutation(api.projects.update);
+  const backfillEmbeddings = useAction(api.issues.backfillEmbeddings);
+  const [backfillState, setBackfillState] = useState<
+    | { kind: "idle" }
+    | { kind: "running" }
+    | { kind: "done"; embedded: number; skipped: string | null }
+    | { kind: "error"; message: string }
+  >({ kind: "idle" });
 
   const [name, setName] = useState("");
   const [key, setKey] = useState("");
@@ -195,6 +202,62 @@ export function ProjectSettingsForm({
               rows={2}
             />
           </div>
+
+          {mode === "edit" && project && (
+            <>
+              <div className="form-section-title">RAG: similar-issue search</div>
+              <p className="form-hint">
+                The triage agent retrieves similar past issues using
+                vector embeddings. New issues are embedded automatically.
+                Run a backfill once to embed pre-existing issues.
+              </p>
+              <div className="form-group">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={async () => {
+                    setBackfillState({ kind: "running" });
+                    try {
+                      const r = await backfillEmbeddings({
+                        projectId: project._id,
+                      });
+                      setBackfillState({
+                        kind: "done",
+                        embedded: r.embedded,
+                        skipped: r.skipped,
+                      });
+                    } catch (e) {
+                      setBackfillState({
+                        kind: "error",
+                        message:
+                          e instanceof Error ? e.message : "Backfill failed",
+                      });
+                    }
+                  }}
+                  disabled={backfillState.kind === "running"}
+                >
+                  {backfillState.kind === "running"
+                    ? "Embedding…"
+                    : "Backfill embeddings for this project"}
+                </button>
+                {backfillState.kind === "done" && (
+                  <p className="form-hint" style={{ marginTop: 8 }}>
+                    {backfillState.skipped
+                      ? `Skipped: ${backfillState.skipped}`
+                      : `Embedded ${backfillState.embedded} issue${backfillState.embedded === 1 ? "" : "s"}.`}
+                  </p>
+                )}
+                {backfillState.kind === "error" && (
+                  <p
+                    className="form-hint"
+                    style={{ marginTop: 8, color: "var(--color-danger)" }}
+                  >
+                    {backfillState.message}
+                  </p>
+                )}
+              </div>
+            </>
+          )}
 
           <div className="form-actions">
             <button type="submit" className="btn btn-primary">

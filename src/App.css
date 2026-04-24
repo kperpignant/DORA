@@ -753,6 +753,212 @@
   gap: 4px;
 }
 
+/* Suggestion banner shown when AI suggestions diverge from current values */
+.ai-suggestion-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  background: var(--color-primary-soft, #eef2ff);
+  border: 1px solid var(--color-primary, #6366f1);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--color-text);
+}
+
+.ai-suggestion-banner span {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.ai-summary-assignee-reason {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+/* Tiny action button for inline "Apply" */
+.btn-tiny {
+  padding: 2px 8px !important;
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+  border-radius: 4px !important;
+}
+
+/* Similar issues (RAG output) */
+.ai-similar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-similar-item {
+  padding: 8px 10px;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.ai-similar-top {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.ai-similar-num {
+  font-family: ui-monospace, "SFMono-Regular", monospace;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.ai-similar-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.ai-similar-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
+
+.ai-similar-sim {
+  padding: 1px 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-family: ui-monospace, "SFMono-Regular", monospace;
+}
+
+.ai-similar-relation {
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-size: 10px;
+}
+
+.ai-similar-relation-duplicate {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.ai-similar-relation-related {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.ai-similar-relation-regression {
+  background: #fce7f3;
+  color: #9d174d;
+}
+
+.ai-similar-note {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--color-text);
+  line-height: 1.4;
+}
+
+/* Agent trace */
+.ai-trace-toggle {
+  background: none;
+  border: none;
+  color: var(--color-primary, #6366f1);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.ai-trace-toggle:hover {
+  text-decoration: underline;
+}
+
+.ai-trace {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-trace-live {
+  margin-top: 12px;
+  font-size: 11px;
+}
+
+.ai-trace-step {
+  padding: 6px 8px;
+  background: var(--color-background);
+  border-left: 2px solid var(--color-border);
+  border-radius: 0 4px 4px 0;
+  font-size: 11px;
+}
+
+.ai-trace-tool_call {
+  border-left-color: var(--color-primary, #6366f1);
+}
+
+.ai-trace-tool_result {
+  border-left-color: #22c55e;
+}
+
+.ai-trace-final {
+  border-left-color: #f59e0b;
+}
+
+.ai-trace-step-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.ai-trace-tool {
+  font-family: ui-monospace, "SFMono-Regular", monospace;
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--color-text);
+}
+
+.ai-trace-time {
+  font-size: 10px;
+  color: var(--color-text-secondary);
+}
+
+.ai-trace-payload {
+  margin: 4px 0 0;
+  padding: 6px 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-family: ui-monospace, "SFMono-Regular", monospace;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 160px;
+  overflow: auto;
+}
+
 /* Issue Card Updates */
 .issue-card-left {
   display: flex;
