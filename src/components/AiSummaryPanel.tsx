@@ -1,9 +1,11 @@
-import { useState } from "react";
-import { useAction } from "convex/react";
+import { useMemo, useState } from "react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Doc } from "../../convex/_generated/dataModel";
+import { Doc, Id } from "../../convex/_generated/dataModel";
 import { PriorityBadge } from "./PriorityBadge";
 import { SeverityBadge } from "./SeverityBadge";
+import { StatusBadge } from "./StatusBadge";
+import { UserAvatar } from "./UserAvatar";
 
 interface IssueWithAssignee extends Doc<"issues"> {
   assignee?: Doc<"users"> | null;
@@ -15,14 +17,38 @@ interface AiSummaryPanelProps {
 
 export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
   const regenerate = useAction(api.aiSummaries.regenerate);
+  const applySeverity = useMutation(api.aiSummaries.applySuggestedSeverity);
+  const applyPriority = useMutation(api.aiSummaries.applySuggestedPriority);
+  const applyAssignee = useMutation(api.aiSummaries.applySuggestedAssignee);
+  const applyAll = useMutation(api.aiSummaries.applyAllSuggestions);
+  const users = useQuery(api.users.list);
+
   const [busy, setBusy] = useState(false);
+  const [showTrace, setShowTrace] = useState(false);
+
+  const userById = useMemo(() => {
+    const map = new Map<string, Doc<"users">>();
+    for (const u of users ?? []) map.set(u._id, u);
+    return map;
+  }, [users]);
 
   const handleRun = async () => {
     setBusy(true);
     try {
       await regenerate({ issueId: issue._id });
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Failed to start AI summary");
+      alert(e instanceof Error ? e.message : "Failed to start AI agent");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const guard = async (fn: () => Promise<unknown>) => {
+    setBusy(true);
+    try {
+      await fn();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Action failed");
     } finally {
       setBusy(false);
     }
@@ -30,13 +56,26 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
 
   const ai = issue.aiSummary;
   const status = ai?.status;
-
   const formatTime = (ts: number) => new Date(ts).toLocaleString();
+
+  const suggestedAssignee = ai?.suggestedAssigneeId
+    ? userById.get(ai.suggestedAssigneeId as Id<"users">)
+    : null;
+
+  const severityDiffers =
+    ai?.suggestedSeverity && issue.severity !== ai.suggestedSeverity;
+  const priorityDiffers =
+    ai?.suggestedPriority && issue.priority !== ai.suggestedPriority;
+  const assigneeDiffers =
+    ai?.suggestedAssigneeId && issue.assigneeId !== ai.suggestedAssigneeId;
+  const anyDiff = severityDiffers || priorityDiffers || assigneeDiffers;
+
+  const liveSteps = ai?.steps ?? [];
 
   return (
     <div className="ai-summary-panel">
       <div className="ai-summary-panel-header">
-        <h3 className="ai-summary-title">AI triage</h3>
+        <h3 className="ai-summary-title">AI triage agent</h3>
         {ai ? (
           <button
             type="button"
@@ -44,7 +83,7 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
             onClick={handleRun}
             disabled={busy || status === "pending" || status === "generating"}
           >
-            {busy ? "…" : "Regenerate"}
+            {busy ? "…" : "Re-run"}
           </button>
         ) : null}
       </div>
@@ -52,8 +91,8 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
       {!ai && (
         <div className="ai-summary-body">
           <p className="ai-summary-muted">
-            No AI analysis yet. Generate one to get severity suggestions, edge
-            cases, and fix ideas.
+            Run the agent to get a triage decision, similar past issues (RAG),
+            a suggested assignee, and concrete fix ideas.
           </p>
           <button
             type="button"
@@ -61,19 +100,36 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
             onClick={handleRun}
             disabled={busy}
           >
-            {busy ? "Starting…" : "Generate summary"}
+            {busy ? "Starting…" : "Run agent"}
           </button>
         </div>
       )}
 
       {ai && (status === "pending" || status === "generating") && (
-        <div className="ai-summary-body ai-summary-loading">
-          <div className="ai-summary-spinner" aria-hidden />
-          <p>
-            {status === "pending"
-              ? "Queued for analysis…"
-              : "Analyzing issue…"}
-          </p>
+        <div className="ai-summary-body">
+          <div className="ai-summary-loading">
+            <div className="ai-summary-spinner" aria-hidden />
+            <p>
+              {status === "pending"
+                ? "Queued…"
+                : `Agent thinking… (${liveSteps.length} steps)`}
+            </p>
+          </div>
+          {liveSteps.length > 0 && (
+            <ol className="ai-trace ai-trace-live">
+              {liveSteps.slice(-4).map((s, i) => (
+                <li key={i} className={`ai-trace-step ai-trace-${s.kind}`}>
+                  <span className="ai-trace-tool">
+                    {s.kind === "tool_call"
+                      ? `→ ${s.tool}`
+                      : s.kind === "tool_result"
+                      ? `← ${s.tool}`
+                      : s.kind}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
         </div>
       )}
 
@@ -93,38 +149,143 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
 
       {ai && status === "complete" && (
         <div className="ai-summary-body">
+          {anyDiff && (
+            <div className="ai-suggestion-banner">
+              <span>
+                The agent suggests changes that differ from what's set on this
+                issue.
+              </span>
+              <button
+                type="button"
+                className="btn btn-primary btn-small"
+                onClick={() => guard(() => applyAll({ issueId: issue._id }))}
+                disabled={busy}
+              >
+                Apply all
+              </button>
+            </div>
+          )}
+
           <div className="ai-summary-suggestions">
             <div className="ai-summary-row">
               <span className="ai-summary-label">Suggested severity</span>
               {ai.suggestedSeverity ? (
                 <div className="ai-summary-badges">
                   <SeverityBadge severity={ai.suggestedSeverity} />
-                  {issue.severity && issue.severity !== ai.suggestedSeverity && (
-                    <span className="ai-summary-compare">
-                      (reporter: <SeverityBadge severity={issue.severity} />)
-                    </span>
+                  {severityDiffers && (
+                    <>
+                      <span className="ai-summary-compare">
+                        (reporter: <SeverityBadge severity={issue.severity!} />)
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-tiny"
+                        onClick={() =>
+                          guard(() => applySeverity({ issueId: issue._id }))
+                        }
+                        disabled={busy}
+                      >
+                        Apply
+                      </button>
+                    </>
                   )}
                 </div>
               ) : (
                 <span className="ai-summary-muted">—</span>
               )}
             </div>
+
             <div className="ai-summary-row">
               <span className="ai-summary-label">Suggested priority</span>
               {ai.suggestedPriority ? (
                 <div className="ai-summary-badges">
                   <PriorityBadge priority={ai.suggestedPriority} />
-                  {issue.priority !== ai.suggestedPriority && (
-                    <span className="ai-summary-compare">
-                      (reporter: <PriorityBadge priority={issue.priority} />)
-                    </span>
+                  {priorityDiffers && (
+                    <>
+                      <span className="ai-summary-compare">
+                        (reporter: <PriorityBadge priority={issue.priority} />)
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-tiny"
+                        onClick={() =>
+                          guard(() => applyPriority({ issueId: issue._id }))
+                        }
+                        disabled={busy}
+                      >
+                        Apply
+                      </button>
+                    </>
                   )}
                 </div>
               ) : (
                 <span className="ai-summary-muted">—</span>
               )}
             </div>
+
+            {suggestedAssignee && (
+              <div className="ai-summary-row">
+                <span className="ai-summary-label">Suggested assignee</span>
+                <div className="ai-summary-badges">
+                  <UserAvatar
+                    name={suggestedAssignee.name}
+                    image={suggestedAssignee.image}
+                    size="small"
+                    showName
+                  />
+                  {assigneeDiffers && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-tiny"
+                      onClick={() =>
+                        guard(() => applyAssignee({ issueId: issue._id }))
+                      }
+                      disabled={busy}
+                    >
+                      Assign
+                    </button>
+                  )}
+                </div>
+                {ai.suggestedAssigneeReason && (
+                  <p className="ai-summary-assignee-reason">
+                    {ai.suggestedAssigneeReason}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
+
+          {ai.similarIssues && ai.similarIssues.length > 0 && (
+            <div className="ai-summary-section">
+              <h4>Similar past issues (RAG)</h4>
+              <ul className="ai-similar-list">
+                {ai.similarIssues.map((s) => (
+                  <li key={s.issueId} className="ai-similar-item">
+                    <div className="ai-similar-top">
+                      <span className="ai-similar-num">#{s.issueNumber}</span>
+                      <span className="ai-similar-title">{s.title}</span>
+                    </div>
+                    <div className="ai-similar-meta">
+                      <StatusBadge status={s.status} />
+                      <span className="ai-similar-sim">
+                        {(s.similarity * 100).toFixed(0)}% match
+                      </span>
+                      {s.relation && (
+                        <span
+                          className={`ai-similar-relation ai-similar-relation-${s.relation}`}
+                        >
+                          {s.relation}
+                        </span>
+                      )}
+                    </div>
+                    {s.note && (
+                      <p className="ai-similar-note">{s.note}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {ai.reasoning && (
             <div className="ai-summary-section">
@@ -155,8 +316,58 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
             </div>
           )}
 
+          {liveSteps.length > 0 && (
+            <div className="ai-summary-section">
+              <button
+                type="button"
+                className="ai-trace-toggle"
+                onClick={() => setShowTrace((v) => !v)}
+              >
+                {showTrace ? "Hide" : "Show"} agent trace ({liveSteps.length}{" "}
+                steps)
+              </button>
+              {showTrace && (
+                <ol className="ai-trace">
+                  {liveSteps.map((s, i) => (
+                    <li
+                      key={i}
+                      className={`ai-trace-step ai-trace-${s.kind}`}
+                    >
+                      <div className="ai-trace-step-head">
+                        <span className="ai-trace-tool">
+                          {s.kind === "tool_call"
+                            ? `→ ${s.tool}`
+                            : s.kind === "tool_result"
+                            ? `← ${s.tool}`
+                            : s.kind}
+                        </span>
+                        <span className="ai-trace-time">
+                          {new Date(s.timestamp).toLocaleTimeString()}
+                        </span>
+                      </div>
+                      {s.input && (
+                        <pre className="ai-trace-payload">{s.input}</pre>
+                      )}
+                      {s.output && (
+                        <pre className="ai-trace-payload">{s.output}</pre>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          )}
+
           <div className="ai-summary-footer">
             {ai.model && <span>Model: {ai.model}</span>}
+            {ai.latencyMs != null && (
+              <span>Took {(ai.latencyMs / 1000).toFixed(1)}s</span>
+            )}
+            {(ai.tokensIn != null || ai.tokensOut != null) && (
+              <span>
+                Tokens: {ai.tokensIn ?? 0} in / {ai.tokensOut ?? 0} out
+              </span>
+            )}
             {ai.generatedAt != null && (
               <span>Updated {formatTime(ai.generatedAt)}</span>
             )}

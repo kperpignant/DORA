@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "eval": "node scripts/run-eval.mjs"
   },
   "dependencies": {
     "@auth/core": "^0.37.4",

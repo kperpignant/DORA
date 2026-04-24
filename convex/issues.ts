@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { action, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 export const listByProject = query({
@@ -151,6 +151,12 @@ export const create = mutation({
       updatedAt: now,
     });
 
+    // Always embed (tasks too) so future bugs can RAG over the full
+    // history of the project, not just past bugs.
+    await ctx.scheduler.runAfter(0, internal.embeddings.embedIssue, {
+      issueId: id,
+    });
+
     if (isBug) {
       await ctx.scheduler.runAfter(0, internal.aiSummaries.generate, {
         issueId: id,
@@ -198,6 +204,31 @@ export const update = mutation({
     if (updates.assigneeId !== undefined) patchData.assigneeId = updates.assigneeId;
 
     await ctx.db.patch(id, patchData);
+
+    // If the searchable text changed, re-embed in the background.
+    const textChanged =
+      updates.title !== undefined ||
+      updates.description !== undefined ||
+      updates.stepsToReproduce !== undefined ||
+      updates.tags !== undefined;
+    if (textChanged) {
+      await ctx.scheduler.runAfter(0, internal.embeddings.embedIssue, {
+        issueId: id,
+      });
+    }
+  },
+});
+
+/**
+ * Public action: re-embed every issue in a project (or all projects).
+ * Safe to call from the UI / a script. Reports how many got embedded.
+ */
+export const backfillEmbeddings = action({
+  args: { projectId: v.optional(v.id("projects")) },
+  handler: async (ctx, args): Promise<{ embedded: number; skipped: string | null }> => {
+    return await ctx.runAction(internal.embeddings.backfillEmbeddings, {
+      projectId: args.projectId,
+    });
   },
 });
 

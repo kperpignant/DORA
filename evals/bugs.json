@@ -1,0 +1,96 @@
+[
+  {
+    "title": "Customers charged twice when retrying failed Stripe payment",
+    "description": "Several customers report being charged twice when they retry a failed checkout. Logs show two POST /checkout calls within ~3 seconds and Stripe accepts both. Repro: trigger 3DS challenge, abandon, then click Pay again. Affects ~0.2% of attempts but each is a P0 refund.",
+    "stepsToReproduce": "1. Start checkout with a 3DS test card. 2. Trigger 3DS challenge. 3. Close the modal without completing. 4. Click Pay again immediately. 5. Both PaymentIntents succeed.",
+    "tags": ["payments", "stripe", "billing"],
+    "reporterPriority": "high",
+    "reporterSeverity": "major",
+    "groundTruthSeverity": "critical",
+    "groundTruthPriority": "high"
+  },
+  {
+    "title": "Marketing dashboard date picker off by one in EU timezones",
+    "description": "When users in CET select 'last 7 days' the dashboard shows data from 6 days ago to today, missing yesterday. Off-by-one is consistent. UTC users are unaffected.",
+    "stepsToReproduce": "1. Set browser timezone to Europe/Berlin. 2. Open dashboard. 3. Click 'Last 7 days'. 4. Compare totals to API response.",
+    "tags": ["analytics", "timezone"],
+    "reporterPriority": "medium",
+    "reporterSeverity": "minor",
+    "groundTruthSeverity": "minor",
+    "groundTruthPriority": "medium"
+  },
+  {
+    "title": "Login button has 2px misalignment on Safari iOS",
+    "description": "On iPhone Safari the Sign In button is 2px to the left compared to the Sign Up button below it. Visual only.",
+    "tags": ["ui", "ios"],
+    "reporterPriority": "low",
+    "reporterSeverity": "trivial",
+    "groundTruthSeverity": "trivial",
+    "groundTruthPriority": "low"
+  },
+  {
+    "title": "Webhook delivery worker crashes on payloads >1MB",
+    "description": "Sentry shows Worker recycle every ~30s when traffic includes a particular tenant. Heap dump points to JSON.parse on a 1.4MB payload. Worker crash drops all in-flight webhooks for ~10s.",
+    "stepsToReproduce": "Send POST /webhooks with a 1.5MB JSON body and watch worker logs.",
+    "tags": ["webhooks", "infra"],
+    "reporterPriority": "high",
+    "reporterSeverity": "critical",
+    "groundTruthSeverity": "critical",
+    "groundTruthPriority": "high"
+  },
+  {
+    "title": "Email template editor loses unsaved changes on browser back",
+    "description": "If an editor user clicks the browser back button mid-edit, the campaign reopens with the previous saved version and edits are lost. No warning prompt.",
+    "tags": ["editor", "ux"],
+    "reporterPriority": "medium",
+    "reporterSeverity": "major",
+    "groundTruthSeverity": "major",
+    "groundTruthPriority": "medium"
+  },
+  {
+    "title": "Search returns 0 results for queries containing apostrophes",
+    "description": "Searching for 'O'Brien' or 'can't' returns no results even when matching documents exist. Unescaped apostrophe likely breaking the FTS query parser.",
+    "tags": ["search"],
+    "reporterPriority": "medium",
+    "reporterSeverity": "major",
+    "groundTruthSeverity": "major",
+    "groundTruthPriority": "medium"
+  },
+  {
+    "title": "Onboarding tooltip shows wrong feature name for SMB plan",
+    "description": "Tooltip says 'Customer Hub' but the SMB plan calls it 'Customer Inbox'. Marketing flagged this in QA.",
+    "tags": ["onboarding", "copy"],
+    "reporterPriority": "low",
+    "reporterSeverity": "minor",
+    "groundTruthSeverity": "trivial",
+    "groundTruthPriority": "low"
+  },
+  {
+    "title": "Bulk export CSV stalls at 100k rows and never completes",
+    "description": "Customers with >100k contacts report exports hang. Server logs show the streaming response stops emitting after exactly 100,000 rows; no error is raised. Browser eventually times out at 5 min.",
+    "stepsToReproduce": "Trigger CSV export on an account with >100k contacts and observe the response.",
+    "tags": ["export", "performance"],
+    "reporterPriority": "high",
+    "reporterSeverity": "major",
+    "groundTruthSeverity": "major",
+    "groundTruthPriority": "high"
+  },
+  {
+    "title": "Scheduled SMS sends use account creator's timezone, not recipient's",
+    "description": "Send-time optimization picks 9am in the account creator's timezone for all recipients globally, instead of the recipient's local 9am. Reported by 4 enterprise accounts this week.",
+    "tags": ["sms", "scheduling"],
+    "reporterPriority": "high",
+    "reporterSeverity": "major",
+    "groundTruthSeverity": "major",
+    "groundTruthPriority": "high"
+  },
+  {
+    "title": "Customer agent occasionally responds in Spanish to English chats",
+    "description": "About 1% of conversations end up with the assistant switching mid-conversation to Spanish, even though the user has been writing in English. Logs show no language code in the system prompt for those threads.",
+    "tags": ["ai", "customer-agent"],
+    "reporterPriority": "high",
+    "reporterSeverity": "major",
+    "groundTruthSeverity": "major",
+    "groundTruthPriority": "high"
+  }
+]
