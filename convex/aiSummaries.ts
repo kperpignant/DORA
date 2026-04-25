@@ -7,6 +7,7 @@ import {
 } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { requireAllowedActionUser, requireAllowedUser } from "./security";
 
 const severityUnion = v.union(
   v.literal("critical"),
@@ -183,6 +184,7 @@ export const generate = internalAction({
 export const regenerate = action({
   args: { issueId: v.id("issues") },
   handler: async (ctx, args) => {
+    await requireAllowedActionUser(ctx);
     await ctx.runMutation(internal.aiSummaries.scheduleGeneration, {
       issueId: args.issueId,
     });
@@ -199,6 +201,7 @@ export const regenerate = action({
 export const applySuggestedSeverity = mutation({
   args: { issueId: v.id("issues") },
   handler: async (ctx, { issueId }) => {
+    await requireAllowedUser(ctx);
     const issue = await ctx.db.get(issueId);
     if (!issue) throw new Error("Issue not found");
     const sev = issue.aiSummary?.suggestedSeverity;
@@ -210,6 +213,7 @@ export const applySuggestedSeverity = mutation({
 export const applySuggestedPriority = mutation({
   args: { issueId: v.id("issues") },
   handler: async (ctx, { issueId }) => {
+    await requireAllowedUser(ctx);
     const issue = await ctx.db.get(issueId);
     if (!issue) throw new Error("Issue not found");
     const pri = issue.aiSummary?.suggestedPriority;
@@ -221,6 +225,7 @@ export const applySuggestedPriority = mutation({
 export const applySuggestedAssignee = mutation({
   args: { issueId: v.id("issues") },
   handler: async (ctx, { issueId }) => {
+    await requireAllowedUser(ctx);
     const issue = await ctx.db.get(issueId);
     if (!issue) throw new Error("Issue not found");
     const userId = issue.aiSummary?.suggestedAssigneeId;
@@ -237,6 +242,7 @@ export const applySuggestedAssignee = mutation({
 export const applyAllSuggestions = mutation({
   args: { issueId: v.id("issues") },
   handler: async (ctx, { issueId }) => {
+    await requireAllowedUser(ctx);
     const issue = await ctx.db.get(issueId);
     if (!issue) throw new Error("Issue not found");
     const ai = issue.aiSummary;

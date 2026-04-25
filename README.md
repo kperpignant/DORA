@@ -217,13 +217,24 @@ npx convex env set OPENAI_API_KEY sk-...
 # Optional:
 # npx convex env set OPENROUTER_MODEL openai/gpt-4o-mini
 
-# 4. Start the frontend in a second terminal
+# 4. Allow only specific Google accounts to access this DORA instance
+npx convex env set ALLOWED_EMAILS "you@example.com,teammate@example.com"
+
+# 5. Start the frontend in a second terminal
 npm run dev
 
-# 5. Visit http://localhost:5173
+# 6. Visit http://localhost:5173
 ```
 
 If you just want to try the agent quickly, create a project, file 4–5 distinct bugs (so RAG has something to retrieve), and then file a 6th bug intentionally similar to one of the earlier ones. Open the new bug — within a few seconds you should see the agent surface the duplicate.
+
+### Access control
+
+DORA is safe to deploy behind a public Render URL because the Render URL and `VITE_CONVEX_URL` are treated as public. Access is enforced in Convex on every public query, mutation, and action.
+
+Set `ALLOWED_EMAILS` on the Convex deployment to a comma-separated list of Google account emails that may use the app. Emails are matched case-insensitively after trimming whitespace. If `ALLOWED_EMAILS` is missing or empty, the app fails closed: nobody can access project data or trigger AI actions.
+
+For production Google OAuth, make sure your Google credentials allow the Convex Auth callback URL for the deployment and that the Convex site URL setting points at the deployed site. After changing Render or Convex environment variables, redeploy/restart the affected service so the new settings are active.
 
 ---
 

@@ -8,6 +8,7 @@ import {
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { runTriageAgent } from "./aiAgent";
+import { requireAllowedActionUser } from "./security";
 
 /**
  * Tiny eval harness used to compare:
@@ -425,6 +426,7 @@ function sum(xs: number[]): number {
 export const run = action({
   args: { fixtures: v.array(v.any()) },
   handler: async (ctx, args): Promise<EvalReport> => {
+    await requireAllowedActionUser(ctx);
     return await ctx.runAction(internal.evals.runInternal, {
       fixtures: args.fixtures,
     });

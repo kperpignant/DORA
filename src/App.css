@@ -1196,6 +1196,10 @@
   margin-bottom: 24px;
 }
 
+.auth-message {
+  line-height: 1.5;
+}
+
 .btn-google {
   width: 100%;
   display: flex;
