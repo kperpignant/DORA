@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireAllowedUser } from "./security";
 
 const projectSummaryValidator = v.object({
   techStack: v.optional(v.string()),
@@ -41,6 +42,7 @@ function normalizeSummary(
 export const list = query({
   args: {},
   handler: async (ctx) => {
+    await requireAllowedUser(ctx);
     return await ctx.db.query("projects").order("desc").collect();
   },
 });
@@ -48,6 +50,7 @@ export const list = query({
 export const get = query({
   args: { id: v.id("projects") },
   handler: async (ctx, args) => {
+    await requireAllowedUser(ctx);
     return await ctx.db.get(args.id);
   },
 });
@@ -55,6 +58,7 @@ export const get = query({
 export const getByKey = query({
   args: { key: v.string() },
   handler: async (ctx, args) => {
+    await requireAllowedUser(ctx);
     return await ctx.db
       .query("projects")
       .withIndex("by_key", (q) => q.eq("key", args.key))
@@ -70,6 +74,7 @@ export const create = mutation({
     summary: v.optional(projectSummaryValidator),
   },
   handler: async (ctx, args) => {
+    await requireAllowedUser(ctx);
     const existing = await ctx.db
       .query("projects")
       .withIndex("by_key", (q) => q.eq("key", args.key))
@@ -97,6 +102,7 @@ export const update = mutation({
     summary: v.optional(projectSummaryValidator),
   },
   handler: async (ctx, args) => {
+    await requireAllowedUser(ctx);
     const { id, summary, name, description } = args;
     const patch: {
       name?: string;
@@ -116,6 +122,7 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("projects") },
   handler: async (ctx, args) => {
+    await requireAllowedUser(ctx);
     // Delete all issues associated with this project
     const issues = await ctx.db
       .query("issues")

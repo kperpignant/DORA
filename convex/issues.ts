@@ -1,10 +1,12 @@
 import { v } from "convex/values";
 import { action, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { requireAllowedActionUser, requireAllowedUser } from "./security";
 
 export const listByProject = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
+    await requireAllowedUser(ctx);
     const issues = await ctx.db
       .query("issues")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
@@ -31,6 +33,7 @@ export const search = query({
     query: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAllowedUser(ctx);
     const issues = await ctx.db
       .query("issues")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
@@ -66,6 +69,7 @@ export const search = query({
 export const get = query({
   args: { id: v.id("issues") },
   handler: async (ctx, args) => {
+    await requireAllowedUser(ctx);
     const issue = await ctx.db.get(args.id);
     if (!issue) return null;
 
@@ -83,6 +87,7 @@ export const getByProjectAndNumber = query({
     issueNumber: v.number(),
   },
   handler: async (ctx, args) => {
+    await requireAllowedUser(ctx);
     const issue = await ctx.db
       .query("issues")
       .withIndex("by_project_and_number", (q) =>
@@ -122,6 +127,7 @@ export const create = mutation({
     assigneeId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
+    await requireAllowedUser(ctx);
     // Get the next issue number for this project
     const existingIssues = await ctx.db
       .query("issues")
@@ -192,6 +198,7 @@ export const update = mutation({
     assigneeId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
+    await requireAllowedUser(ctx);
     const { id, ...updates } = args;
     
     // Build the update object, only including defined values
@@ -236,6 +243,7 @@ export const update = mutation({
 export const backfillEmbeddings = action({
   args: { projectId: v.optional(v.id("projects")) },
   handler: async (ctx, args): Promise<{ embedded: number; skipped: string | null }> => {
+    await requireAllowedActionUser(ctx);
     return await ctx.runAction(internal.embeddings.backfillEmbeddings, {
       projectId: args.projectId,
     });
@@ -245,6 +253,7 @@ export const backfillEmbeddings = action({
 export const clearAssignee = mutation({
   args: { id: v.id("issues") },
   handler: async (ctx, args) => {
+    await requireAllowedUser(ctx);
     await ctx.db.patch(args.id, {
       assigneeId: undefined,
       updatedAt: Date.now(),
@@ -255,6 +264,7 @@ export const clearAssignee = mutation({
 export const remove = mutation({
   args: { id: v.id("issues") },
   handler: async (ctx, args) => {
+    await requireAllowedUser(ctx);
     await ctx.db.delete(args.id);
   },
 });

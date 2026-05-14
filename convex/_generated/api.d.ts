@@ -16,6 +16,7 @@ import type * as evals from "../evals.js";
 import type * as http from "../http.js";
 import type * as issues from "../issues.js";
 import type * as projects from "../projects.js";
+import type * as security from "../security.js";
 import type * as users from "../users.js";
 
 import type {
@@ -33,6 +34,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   issues: typeof issues;
   projects: typeof projects;
+  security: typeof security;
   users: typeof users;
 }>;
 
