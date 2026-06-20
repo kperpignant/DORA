@@ -11,6 +11,7 @@ import { UserAvatar } from "./UserAvatar";
 import { formatUserLabel } from "../lib/formatUserLabel";
 import { IssueForm } from "./IssueForm";
 import { AiSummaryPanel } from "./AiSummaryPanel";
+import { IssueAttachments } from "./IssueAttachments";
 
 interface IssueWithAssignee extends Doc<"issues"> {
   assignee?: Doc<"users"> | null;
@@ -119,6 +120,11 @@ export function IssueDetailView({ issue, projectKey, onBack }: IssueDetailViewPr
               <div className="issue-detail-description">
                 {displayIssue.description || <span className="empty-text">No description provided</span>}
               </div>
+            </div>
+
+            <div className="issue-detail-section">
+              <h3>Attachments</h3>
+              <IssueAttachments issueId={displayIssue._id} />
             </div>
 
             {/* Type-specific sections */}

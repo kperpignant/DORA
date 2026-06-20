@@ -11,6 +11,7 @@
 import type * as admin from "../admin.js";
 import type * as aiAgent from "../aiAgent.js";
 import type * as aiSummaries from "../aiSummaries.js";
+import type * as attachments from "../attachments.js";
 import type * as auth from "../auth.js";
 import type * as embeddings from "../embeddings.js";
 import type * as evals from "../evals.js";
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   aiAgent: typeof aiAgent;
   aiSummaries: typeof aiSummaries;
+  attachments: typeof attachments;
   auth: typeof auth;
   embeddings: typeof embeddings;
   evals: typeof evals;

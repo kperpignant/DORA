@@ -282,6 +282,17 @@ export const remove = mutation({
     const issue = await ctx.db.get(args.id);
     if (!issue) throw new Error("Issue not found");
     await requireProjectAccess(ctx, issue.projectId);
+
+    const attachments = await ctx.db
+      .query("attachments")
+      .withIndex("by_issue", (q) => q.eq("issueId", args.id))
+      .collect();
+
+    for (const attachment of attachments) {
+      await ctx.storage.delete(attachment.storageId);
+      await ctx.db.delete(attachment._id);
+    }
+
     await ctx.db.delete(args.id);
   },
 });

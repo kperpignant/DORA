@@ -162,4 +162,21 @@ export default defineSchema({
       dimensions: 1536,
       filterFields: ["projectId", "type"],
     }),
+
+  attachments: defineTable({
+    issueId: v.id("issues"),
+    projectId: v.id("projects"),
+    storageId: v.id("_storage"),
+    fileName: v.string(),
+    contentType: v.string(),
+    size: v.number(),
+    kind: v.union(
+      v.literal("image"),
+      v.literal("log"),
+      v.literal("video"),
+      v.literal("other")
+    ),
+    uploadedBy: v.id("users"),
+    uploadedAt: v.number(),
+  }).index("by_issue", ["issueId"]),
 });
