@@ -251,16 +251,20 @@ For production Google OAuth, make sure your Google credentials allow the Convex 
 ### Deploying to Render
 
 1. In the Convex dashboard, generate a **Production deploy key** for your project and add it to Render as `CONVEX_DEPLOY_KEY`.
-2. Set Render **Build Command** to:
+2. Set Render **Build Command** to one of these (use the **inline** form if Render is still on an older commit):
 
 ```bash
-npm install && npm run deploy:render
+npm install && node scripts/render-build.mjs
 ```
-
-Or, without relying on the npm script:
 
 ```bash
 npm install && node node_modules/convex/bin/main.js deploy --cmd 'npm run build' --cmd-url-env-var-name VITE_CONVEX_URL
+```
+
+After pulling commit `c5f7a7e` or later you can also use:
+
+```bash
+npm install && npm run deploy:render
 ```
 
 **Important:** `--cmd-url-env-var-name` must be the **environment variable name** your frontend reads (e.g. `VITE_CONVEX_URL`), not your Convex deployment URL. Convex sets that variable to the correct URL during the build.
