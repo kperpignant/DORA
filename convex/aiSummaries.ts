@@ -29,6 +29,7 @@ const similarIssueValidator = v.object({
   status: v.union(
     v.literal("todo"),
     v.literal("in_progress"),
+    v.literal("blocked"),
     v.literal("done")
   ),
   similarity: v.number(),

@@ -433,6 +433,11 @@
   color: #006644;
 }
 
+.status-blocked {
+  background: #fff4e5;
+  color: #974f0c;
+}
+
 .priority-low {
   background: #e3fcef;
   color: #006644;

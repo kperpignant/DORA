@@ -1,4 +1,4 @@
-type Status = "todo" | "in_progress" | "done";
+type Status = "todo" | "in_progress" | "blocked" | "done";
 
 interface StatusBadgeProps {
   status: Status;
@@ -7,6 +7,7 @@ interface StatusBadgeProps {
 const statusConfig: Record<Status, { label: string; className: string }> = {
   todo: { label: "To Do", className: "status-todo" },
   in_progress: { label: "In Progress", className: "status-in-progress" },
+  blocked: { label: "Blocked", className: "status-blocked" },
   done: { label: "Done", className: "status-done" },
 };
 

@@ -2,7 +2,7 @@ import { useDroppable } from "@dnd-kit/core";
 import { Doc } from "../../convex/_generated/dataModel";
 import { KanbanCard } from "./KanbanCard";
 
-type Status = "todo" | "in_progress" | "done";
+type Status = "todo" | "in_progress" | "blocked" | "done";
 
 interface IssueWithAssignee extends Doc<"issues"> {
   assignee?: Doc<"users"> | null;

@@ -20,7 +20,7 @@ interface IssueListProps {
 }
 
 const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
-const statusOrder: Record<string, number> = { todo: 0, in_progress: 1, done: 2 };
+const statusOrder: Record<string, number> = { todo: 0, in_progress: 1, blocked: 2, done: 3 };
 
 export function IssueList({ projectId, projectKey, searchQuery = "", onViewIssue, onCreateIssue }: IssueListProps) {
   // Use search query if present, otherwise list all issues

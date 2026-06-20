@@ -10,7 +10,7 @@ import { UserAvatar } from "./UserAvatar";
 import { useDroppable } from "@dnd-kit/core";
 import { formatUserLabel } from "../lib/formatUserLabel";
 
-type Status = "todo" | "in_progress" | "done";
+type Status = "todo" | "in_progress" | "blocked" | "done";
 
 interface IssueWithAssignee extends Doc<"issues"> {
   assignee?: Doc<"users"> | null;
@@ -27,6 +27,7 @@ interface KanbanBoardProps {
 const columns: { status: Status; title: string }[] = [
   { status: "todo", title: "To Do" },
   { status: "in_progress", title: "In Progress" },
+  { status: "blocked", title: "Blocked" },
   { status: "done", title: "Done" },
 ];
 
@@ -87,11 +88,12 @@ export function KanbanBoard({ projectId, projectKey, searchQuery = "", onViewIss
   );
 
   const issuesByStatus = useMemo(() => {
-    if (!issues) return { todo: [], in_progress: [], done: [] };
+    if (!issues) return { todo: [], in_progress: [], blocked: [], done: [] };
     
     return {
       todo: issues.filter((i) => i.status === "todo"),
       in_progress: issues.filter((i) => i.status === "in_progress"),
+      blocked: issues.filter((i) => i.status === "blocked"),
       done: issues.filter((i) => i.status === "done"),
     };
   }, [issues]);
@@ -115,7 +117,7 @@ export function KanbanBoard({ projectId, projectKey, searchQuery = "", onViewIss
     const overId = over.id as string;
 
     // Check if dropping on a status column
-    if (["todo", "in_progress", "done"].includes(overId)) {
+    if (["todo", "in_progress", "blocked", "done"].includes(overId)) {
       const newStatus = overId as Status;
       if (issue.status !== newStatus) {
         await updateIssue({

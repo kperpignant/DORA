@@ -97,7 +97,7 @@ export const hydrateSimilarHits = internalQuery({
       issueNumber: number;
       title: string;
       description: string;
-      status: "todo" | "in_progress" | "done";
+      status: "todo" | "in_progress" | "blocked" | "done";
       type: "bug" | "task";
       assigneeId: Id<"users"> | undefined;
       assigneeName: string | null;
@@ -325,7 +325,7 @@ type SimilarHit = {
   issueNumber: number;
   title: string;
   description: string;
-  status: "todo" | "in_progress" | "done";
+  status: "todo" | "in_progress" | "blocked" | "done";
   type: "bug" | "task";
   assigneeId: Id<"users"> | undefined;
   assigneeName: string | null;
@@ -488,7 +488,7 @@ export type AgentResult = {
     issueId: Id<"issues">;
     issueNumber: number;
     title: string;
-    status: "todo" | "in_progress" | "done";
+    status: "todo" | "in_progress" | "blocked" | "done";
     similarity: number;
     relation?: "duplicate" | "related" | "regression";
     note?: string;

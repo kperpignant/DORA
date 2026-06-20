@@ -6,7 +6,7 @@ import { AssigneeSelect } from "./AssigneeSelect";
 import { TagInput } from "./TagInput";
 
 type IssueType = "task" | "bug";
-type Status = "todo" | "in_progress" | "done";
+type Status = "todo" | "in_progress" | "blocked" | "done";
 type Priority = "low" | "medium" | "high";
 type Severity = "critical" | "major" | "minor" | "trivial";
 
@@ -253,6 +253,7 @@ export function IssueForm({ projectId, issue, onClose }: IssueFormProps) {
               >
                 <option value="todo">To Do</option>
                 <option value="in_progress">In Progress</option>
+                <option value="blocked">Blocked</option>
                 <option value="done">Done</option>
               </select>
             </div>

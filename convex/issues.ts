@@ -123,7 +123,12 @@ export const create = mutation({
     type: v.union(v.literal("task"), v.literal("bug")),
     title: v.string(),
     description: v.string(),
-    status: v.union(v.literal("todo"), v.literal("in_progress"), v.literal("done")),
+    status: v.union(
+      v.literal("todo"),
+      v.literal("in_progress"),
+      v.literal("blocked"),
+      v.literal("done")
+    ),
     priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
     estimate: v.optional(v.string()),
     stepsToReproduce: v.optional(v.string()),
@@ -193,7 +198,14 @@ export const update = mutation({
     id: v.id("issues"),
     title: v.optional(v.string()),
     description: v.optional(v.string()),
-    status: v.optional(v.union(v.literal("todo"), v.literal("in_progress"), v.literal("done"))),
+    status: v.optional(
+      v.union(
+        v.literal("todo"),
+        v.literal("in_progress"),
+        v.literal("blocked"),
+        v.literal("done")
+      )
+    ),
     priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"))),
     estimate: v.optional(v.string()),
     stepsToReproduce: v.optional(v.string()),
