@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "deploy:render": "node node_modules/convex/bin/main.js deploy --cmd \"npm run build\" --cmd-url-env-var-name VITE_CONVEX_URL",
     "lint": "eslint .",
     "test": "vitest run",
     "preview": "vite preview",
