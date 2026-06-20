@@ -1,6 +1,11 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAllowedUser } from "./security";
+import {
+  isAdmin,
+  requireAdmin,
+  requireAllowedUser,
+  requireProjectAccess,
+} from "./security";
 
 const projectSummaryValidator = v.object({
   techStack: v.optional(v.string()),
@@ -42,15 +47,30 @@ function normalizeSummary(
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    await requireAllowedUser(ctx);
-    return await ctx.db.query("projects").order("desc").collect();
+    const user = await requireAllowedUser(ctx);
+    if (isAdmin(user)) {
+      return await ctx.db.query("projects").order("desc").collect();
+    }
+
+    const memberships = await ctx.db
+      .query("projectMembers")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+
+    const projects = await Promise.all(
+      memberships.map((membership) => ctx.db.get(membership.projectId))
+    );
+
+    return projects
+      .filter((project): project is NonNullable<typeof project> => project !== null)
+      .sort((a, b) => b.createdAt - a.createdAt);
   },
 });
 
 export const get = query({
   args: { id: v.id("projects") },
   handler: async (ctx, args) => {
-    await requireAllowedUser(ctx);
+    await requireProjectAccess(ctx, args.id);
     return await ctx.db.get(args.id);
   },
 });
@@ -58,11 +78,13 @@ export const get = query({
 export const getByKey = query({
   args: { key: v.string() },
   handler: async (ctx, args) => {
-    await requireAllowedUser(ctx);
-    return await ctx.db
+    const project = await ctx.db
       .query("projects")
       .withIndex("by_key", (q) => q.eq("key", args.key))
       .first();
+    if (!project) return null;
+    await requireProjectAccess(ctx, project._id);
+    return project;
   },
 });
 
@@ -74,7 +96,7 @@ export const create = mutation({
     summary: v.optional(projectSummaryValidator),
   },
   handler: async (ctx, args) => {
-    await requireAllowedUser(ctx);
+    await requireAdmin(ctx);
     const existing = await ctx.db
       .query("projects")
       .withIndex("by_key", (q) => q.eq("key", args.key))
@@ -102,7 +124,7 @@ export const update = mutation({
     summary: v.optional(projectSummaryValidator),
   },
   handler: async (ctx, args) => {
-    await requireAllowedUser(ctx);
+    await requireAdmin(ctx);
     const { id, summary, name, description } = args;
     const patch: {
       name?: string;
@@ -122,8 +144,7 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("projects") },
   handler: async (ctx, args) => {
-    await requireAllowedUser(ctx);
-    // Delete all issues associated with this project
+    await requireAdmin(ctx);
     const issues = await ctx.db
       .query("issues")
       .withIndex("by_project", (q) => q.eq("projectId", args.id))
@@ -131,6 +152,14 @@ export const remove = mutation({
 
     for (const issue of issues) {
       await ctx.db.delete(issue._id);
+    }
+
+    const memberships = await ctx.db
+      .query("projectMembers")
+      .withIndex("by_project", (q) => q.eq("projectId", args.id))
+      .collect();
+    for (const membership of memberships) {
+      await ctx.db.delete(membership._id);
     }
 
     await ctx.db.delete(args.id);

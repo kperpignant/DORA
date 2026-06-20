@@ -1,6 +1,7 @@
+import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { isEmailAllowed, requireAllowedUser } from "./security";
+import { isAdmin, isEmailAllowed, requireProjectAccess } from "./security";
 
 export const current = query({
   args: {},
@@ -9,14 +10,28 @@ export const current = query({
     if (!userId) return null;
     const user = await ctx.db.get(userId);
     if (!user) return null;
-    return { ...user, isAllowed: isEmailAllowed(user.email) };
+    return {
+      ...user,
+      isAllowed: isEmailAllowed(user.email),
+      isAdmin: isAdmin(user),
+    };
   },
 });
 
-export const list = query({
-  args: {},
-  handler: async (ctx) => {
-    await requireAllowedUser(ctx);
-    return await ctx.db.query("users").collect();
+export const listForProject = query({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    await requireProjectAccess(ctx, args.projectId);
+
+    const memberships = await ctx.db
+      .query("projectMembers")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+
+    const members = await Promise.all(
+      memberships.map(async (membership) => ctx.db.get(membership.userId))
+    );
+
+    return members.filter((member): member is NonNullable<typeof member> => member !== null);
   },
 });

@@ -8,9 +8,14 @@ import { ProjectSettingsForm } from "./ProjectSettingsForm";
 interface ProjectListProps {
   selectedProjectId: Id<"projects"> | null;
   onSelectProject: (id: Id<"projects"> | null) => void;
+  isAdmin: boolean;
 }
 
-export function ProjectList({ selectedProjectId, onSelectProject }: ProjectListProps) {
+export function ProjectList({
+  selectedProjectId,
+  onSelectProject,
+  isAdmin,
+}: ProjectListProps) {
   const projects = useQuery(api.projects.list);
   const deleteProject = useMutation(api.projects.remove);
 
@@ -29,9 +34,11 @@ export function ProjectList({ selectedProjectId, onSelectProject }: ProjectListP
     <div className="project-list">
       <div className="project-list-header">
         <h2>Projects</h2>
-        <button className="btn btn-primary" onClick={() => setIsCreating(true)}>
-          + New
-        </button>
+        {isAdmin && (
+          <button className="btn btn-primary" onClick={() => setIsCreating(true)}>
+            + New
+          </button>
+        )}
       </div>
 
       {isCreating && (
@@ -45,7 +52,11 @@ export function ProjectList({ selectedProjectId, onSelectProject }: ProjectListP
         {projects === undefined ? (
           <p className="loading">Loading projects...</p>
         ) : projects.length === 0 ? (
-          <p className="empty">No projects yet. Create one to get started!</p>
+          <p className="empty">
+            {isAdmin
+              ? "No projects yet. Create one to get started!"
+              : "No projects assigned yet. Ask an admin for access."}
+          </p>
         ) : (
           projects.map((project) => (
             <ProjectCard
@@ -53,7 +64,7 @@ export function ProjectList({ selectedProjectId, onSelectProject }: ProjectListP
               project={project}
               isSelected={selectedProjectId === project._id}
               onSelect={() => onSelectProject(project._id)}
-              onDelete={() => handleDelete(project._id)}
+              onDelete={isAdmin ? () => handleDelete(project._id) : undefined}
             />
           ))
         )}

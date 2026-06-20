@@ -6,6 +6,7 @@ import { PriorityBadge } from "./PriorityBadge";
 import { SeverityBadge } from "./SeverityBadge";
 import { StatusBadge } from "./StatusBadge";
 import { UserAvatar } from "./UserAvatar";
+import { formatUserLabel } from "../lib/formatUserLabel";
 
 interface IssueWithAssignee extends Doc<"issues"> {
   assignee?: Doc<"users"> | null;
@@ -21,7 +22,7 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
   const applyPriority = useMutation(api.aiSummaries.applySuggestedPriority);
   const applyAssignee = useMutation(api.aiSummaries.applySuggestedAssignee);
   const applyAll = useMutation(api.aiSummaries.applyAllSuggestions);
-  const users = useQuery(api.users.list);
+  const users = useQuery(api.users.listForProject, { projectId: issue.projectId });
 
   const [busy, setBusy] = useState(false);
   const [showTrace, setShowTrace] = useState(false);
@@ -242,7 +243,7 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
                 <span className="ai-summary-label">Suggested assignee</span>
                 <div className="ai-summary-badges">
                   <UserAvatar
-                    name={suggestedAssignee.name}
+                    name={formatUserLabel(suggestedAssignee)}
                     image={suggestedAssignee.image}
                     size="small"
                     showName

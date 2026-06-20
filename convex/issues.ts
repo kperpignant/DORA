@@ -1,19 +1,32 @@
 import { v } from "convex/values";
-import { action, mutation, query } from "./_generated/server";
+import { action, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { requireAllowedActionUser, requireAllowedUser } from "./security";
+import { requireAllowedActionUser, requireProjectAccess } from "./security";
+
+export const assertProjectAccess = internalQuery({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    await requireProjectAccess(ctx, args.projectId);
+  },
+});
+
+export const getInternal = internalQuery({
+  args: { issueId: v.id("issues") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.issueId);
+  },
+});
 
 export const listByProject = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
-    await requireAllowedUser(ctx);
+    await requireProjectAccess(ctx, args.projectId);
     const issues = await ctx.db
       .query("issues")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .order("desc")
       .collect();
 
-    // Fetch assignee info for each issue
     const issuesWithAssignees = await Promise.all(
       issues.map(async (issue) => {
         const assignee = issue.assigneeId
@@ -33,7 +46,7 @@ export const search = query({
     query: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireAllowedUser(ctx);
+    await requireProjectAccess(ctx, args.projectId);
     const issues = await ctx.db
       .query("issues")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
@@ -42,7 +55,6 @@ export const search = query({
 
     const searchLower = args.query.toLowerCase().trim();
 
-    // Filter issues by search query (title, description, tags)
     const filtered = issues.filter((issue) => {
       const titleMatch = issue.title.toLowerCase().includes(searchLower);
       const descMatch = issue.description.toLowerCase().includes(searchLower);
@@ -52,7 +64,6 @@ export const search = query({
       return titleMatch || descMatch || tagsMatch;
     });
 
-    // Fetch assignee info for each issue
     const issuesWithAssignees = await Promise.all(
       filtered.map(async (issue) => {
         const assignee = issue.assigneeId
@@ -69,9 +80,10 @@ export const search = query({
 export const get = query({
   args: { id: v.id("issues") },
   handler: async (ctx, args) => {
-    await requireAllowedUser(ctx);
     const issue = await ctx.db.get(args.id);
     if (!issue) return null;
+
+    await requireProjectAccess(ctx, issue.projectId);
 
     const assignee = issue.assigneeId
       ? await ctx.db.get(issue.assigneeId)
@@ -87,7 +99,7 @@ export const getByProjectAndNumber = query({
     issueNumber: v.number(),
   },
   handler: async (ctx, args) => {
-    await requireAllowedUser(ctx);
+    await requireProjectAccess(ctx, args.projectId);
     const issue = await ctx.db
       .query("issues")
       .withIndex("by_project_and_number", (q) =>
@@ -127,8 +139,7 @@ export const create = mutation({
     assigneeId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    await requireAllowedUser(ctx);
-    // Get the next issue number for this project
+    await requireProjectAccess(ctx, args.projectId);
     const existingIssues = await ctx.db
       .query("issues")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
@@ -161,8 +172,6 @@ export const create = mutation({
       updatedAt: now,
     });
 
-    // Always embed (tasks too) so future bugs can RAG over the full
-    // history of the project, not just past bugs.
     await ctx.scheduler.runAfter(0, internal.embeddings.embedIssue, {
       issueId: id,
     });
@@ -198,10 +207,12 @@ export const update = mutation({
     assigneeId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    await requireAllowedUser(ctx);
+    const issue = await ctx.db.get(args.id);
+    if (!issue) throw new Error("Issue not found");
+    await requireProjectAccess(ctx, issue.projectId);
+
     const { id, ...updates } = args;
-    
-    // Build the update object, only including defined values
+
     const patchData: Record<string, unknown> = {
       updatedAt: Date.now(),
     };
@@ -220,7 +231,6 @@ export const update = mutation({
 
     await ctx.db.patch(id, patchData);
 
-    // If the searchable text changed, re-embed in the background.
     const textChanged =
       updates.title !== undefined ||
       updates.description !== undefined ||
@@ -236,14 +246,17 @@ export const update = mutation({
   },
 });
 
-/**
- * Public action: re-embed every issue in a project (or all projects).
- * Safe to call from the UI / a script. Reports how many got embedded.
- */
 export const backfillEmbeddings = action({
   args: { projectId: v.optional(v.id("projects")) },
   handler: async (ctx, args): Promise<{ embedded: number; skipped: string | null }> => {
     await requireAllowedActionUser(ctx);
+    if (args.projectId) {
+      await ctx.runQuery(internal.issues.assertProjectAccess, {
+        projectId: args.projectId,
+      });
+    } else {
+      await ctx.runQuery(internal.admin.assertAdmin, {});
+    }
     return await ctx.runAction(internal.embeddings.backfillEmbeddings, {
       projectId: args.projectId,
     });
@@ -253,7 +266,9 @@ export const backfillEmbeddings = action({
 export const clearAssignee = mutation({
   args: { id: v.id("issues") },
   handler: async (ctx, args) => {
-    await requireAllowedUser(ctx);
+    const issue = await ctx.db.get(args.id);
+    if (!issue) throw new Error("Issue not found");
+    await requireProjectAccess(ctx, issue.projectId);
     await ctx.db.patch(args.id, {
       assigneeId: undefined,
       updatedAt: Date.now(),
@@ -264,7 +279,9 @@ export const clearAssignee = mutation({
 export const remove = mutation({
   args: { id: v.id("issues") },
   handler: async (ctx, args) => {
-    await requireAllowedUser(ctx);
+    const issue = await ctx.db.get(args.id);
+    if (!issue) throw new Error("Issue not found");
+    await requireProjectAccess(ctx, issue.projectId);
     await ctx.db.delete(args.id);
   },
 });

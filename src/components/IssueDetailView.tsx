@@ -8,6 +8,7 @@ import { TypeBadge } from "./TypeBadge";
 import { SeverityBadge } from "./SeverityBadge";
 import { TagBadge } from "./TagBadge";
 import { UserAvatar } from "./UserAvatar";
+import { formatUserLabel } from "../lib/formatUserLabel";
 import { IssueForm } from "./IssueForm";
 import { AiSummaryPanel } from "./AiSummaryPanel";
 
@@ -91,7 +92,7 @@ export function IssueDetailView({ issue, projectKey, onBack }: IssueDetailViewPr
               <div className="issue-detail-assignee">
                 {displayIssue.assignee ? (
                   <UserAvatar
-                    name={displayIssue.assignee.name}
+                    name={formatUserLabel(displayIssue.assignee)}
                     image={displayIssue.assignee.image}
                     size="medium"
                     showName

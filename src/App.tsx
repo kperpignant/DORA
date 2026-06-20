@@ -4,6 +4,7 @@ import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
+import { AdminPanel } from "./components/AdminPanel";
 import { ProjectList } from "./components/ProjectList";
 import { ProjectView } from "./components/ProjectView";
 import { SignIn } from "./components/SignIn";
@@ -12,6 +13,7 @@ import "./App.css";
 
 function AuthenticatedApp() {
   const [selectedProjectId, setSelectedProjectId] = useState<Id<"projects"> | null>(null);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
   const { signOut } = useAuthActions();
   const user = useQuery(api.users.current);
 
@@ -53,25 +55,49 @@ function AuthenticatedApp() {
           <h1>DORA</h1>
           <span className="tagline">Project Management</span>
         </div>
-        <UserMenu />
+        <div className="app-header-right">
+          {user.isAdmin && (
+            <button
+              type="button"
+              className={`btn btn-secondary btn-small ${showAdminPanel ? "active" : ""}`}
+              onClick={() => setShowAdminPanel((open) => !open)}
+            >
+              {showAdminPanel ? "Close Admin" : "Admin"}
+            </button>
+          )}
+          <UserMenu />
+        </div>
       </header>
       <main className="app-main">
-        <aside className="sidebar">
-          <ProjectList
-            selectedProjectId={selectedProjectId}
-            onSelectProject={setSelectedProjectId}
-          />
-        </aside>
-        <section className="content">
-          {selectedProjectId ? (
-            <ProjectView projectId={selectedProjectId} />
-          ) : (
-            <div className="welcome">
-              <h2>Welcome to DORA</h2>
-              <p>Select a project from the sidebar or create a new one to get started.</p>
-            </div>
-          )}
-        </section>
+        {showAdminPanel ? (
+          <section className="content content-full">
+            <AdminPanel onClose={() => setShowAdminPanel(false)} />
+          </section>
+        ) : (
+          <>
+            <aside className="sidebar">
+              <ProjectList
+                selectedProjectId={selectedProjectId}
+                onSelectProject={setSelectedProjectId}
+                isAdmin={user.isAdmin}
+              />
+            </aside>
+            <section className="content">
+              {selectedProjectId ? (
+                <ProjectView projectId={selectedProjectId} />
+              ) : (
+                <div className="welcome">
+                  <h2>Welcome to DORA</h2>
+                  <p>
+                    {user.isAdmin
+                      ? "Select a project from the sidebar or create a new one to get started."
+                      : "Select a project from the sidebar. Ask an admin if you need access to a project."}
+                  </p>
+                </div>
+              )}
+            </section>
+          </>
+        )}
       </main>
     </div>
   );

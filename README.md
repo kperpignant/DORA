@@ -220,10 +220,13 @@ npx convex env set OPENAI_API_KEY sk-...
 # 4. Allow only specific Google accounts to access this DORA instance
 npx convex env set ALLOWED_EMAILS "you@example.com,teammate@example.com"
 
-# 5. Start the frontend in a second terminal
+# 5. Bootstrap the first admin(s) — these emails always have admin access
+npx convex env set ADMIN_EMAILS "you@example.com"
+
+# 6. Start the frontend in a second terminal
 npm run dev
 
-# 6. Visit http://localhost:5173
+# 7. Visit http://localhost:5173
 ```
 
 If you just want to try the agent quickly, create a project, file 4–5 distinct bugs (so RAG has something to retrieve), and then file a 6th bug intentionally similar to one of the earlier ones. Open the new bug — within a few seconds you should see the agent surface the duplicate.
@@ -232,7 +235,16 @@ If you just want to try the agent quickly, create a project, file 4–5 distinct
 
 DORA is safe to deploy behind a public Render URL because the Render URL and `VITE_CONVEX_URL` are treated as public. Access is enforced in Convex on every public query, mutation, and action.
 
-Set `ALLOWED_EMAILS` on the Convex deployment to a comma-separated list of Google account emails that may use the app. Emails are matched case-insensitively after trimming whitespace. If `ALLOWED_EMAILS` is missing or empty, the app fails closed: nobody can access project data or trigger AI actions.
+**Login gate (`ALLOWED_EMAILS`)** — Set on the Convex deployment to a comma-separated list of Google account emails that may sign in. Emails are matched case-insensitively after trimming whitespace. If `ALLOWED_EMAILS` is missing or empty, the app fails closed: nobody can access project data or trigger AI actions.
+
+**Admin bootstrap (`ADMIN_EMAILS`)** — Set to a comma-separated list of emails that always receive admin privileges (even before any in-app role is assigned). Admins can then promote other users to admin from the **Admin** panel in the app header.
+
+**Roles and project access**
+- **Admins** see all projects, can create/delete projects, edit project settings, and open the Admin panel to manage users, roles, and per-project membership.
+- **Members** only see projects they have been explicitly assigned to in the Admin panel. They cannot see other projects or access their issues.
+- Assignee pickers show `Name — email` so users with the same display name are distinguishable.
+
+**Removing users** — Admins can remove a user from the Admin panel. This unassigns them from all issues, deletes their project memberships, blocks their email from signing in again, and removes their auth sessions. To fully revoke someone listed in `ADMIN_EMAILS`, remove their email from that env var as well.
 
 For production Google OAuth, make sure your Google credentials allow the Convex Auth callback URL for the deployment and that the Convex site URL setting points at the deployed site. After changing Render or Convex environment variables, redeploy/restart the affected service so the new settings are active.
 

@@ -8,6 +8,7 @@ import { KanbanColumn } from "./KanbanColumn";
 import { KanbanCard } from "./KanbanCard";
 import { UserAvatar } from "./UserAvatar";
 import { useDroppable } from "@dnd-kit/core";
+import { formatUserLabel } from "../lib/formatUserLabel";
 
 type Status = "todo" | "in_progress" | "done";
 
@@ -29,7 +30,18 @@ const columns: { status: Status; title: string }[] = [
   { status: "done", title: "Done" },
 ];
 
-function AssigneeDropZone({ userId, name, image }: { userId: Id<"users"> | null; name?: string | null; image?: string | null }) {
+function AssigneeDropZone({
+  userId,
+  name,
+  email,
+  image,
+}: {
+  userId: Id<"users"> | null;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+}) {
+  const label = userId ? formatUserLabel({ name, email }) : "Unassigned";
   const { setNodeRef, isOver } = useDroppable({
     id: `assignee-${userId || "unassigned"}`,
     data: { type: "assignee", userId },
@@ -39,14 +51,14 @@ function AssigneeDropZone({ userId, name, image }: { userId: Id<"users"> | null;
     <div
       ref={setNodeRef}
       className={`assignee-drop-zone ${isOver ? "drag-over" : ""}`}
-      title={userId ? `Assign to ${name}` : "Unassign"}
+      title={userId ? `Assign to ${label}` : "Unassign"}
     >
       {userId ? (
         <UserAvatar name={name} image={image} size="medium" />
       ) : (
         <div className="user-avatar-placeholder medium">?</div>
       )}
-      <span className="assignee-drop-label">{name || "Unassigned"}</span>
+      <span className="assignee-drop-label">{label}</span>
     </div>
   );
 }
@@ -60,7 +72,7 @@ export function KanbanBoard({ projectId, projectKey, searchQuery = "", onViewIss
   );
   
   const issues = searchQuery.trim() ? searchResults : allIssues;
-  const users = useQuery(api.users.list);
+  const users = useQuery(api.users.listForProject, { projectId });
   const updateIssue = useMutation(api.issues.update);
   const clearAssignee = useMutation(api.issues.clearAssignee);
 
@@ -182,6 +194,7 @@ export function KanbanBoard({ projectId, projectKey, searchQuery = "", onViewIss
                   key={user._id}
                   userId={user._id}
                   name={user.name}
+                  email={user.email}
                   image={user.image}
                 />
               ))}

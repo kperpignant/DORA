@@ -5,6 +5,34 @@ import { authTables } from "@convex-dev/auth/server";
 export default defineSchema({
   ...authTables,
 
+  users: defineTable({
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+    email: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.number()),
+    phone: v.optional(v.string()),
+    phoneVerificationTime: v.optional(v.number()),
+    isAnonymous: v.optional(v.boolean()),
+    role: v.optional(v.union(v.literal("admin"), v.literal("member"))),
+  })
+    .index("email", ["email"])
+    .index("phone", ["phone"]),
+
+  projectMembers: defineTable({
+    projectId: v.id("projects"),
+    userId: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_user", ["userId"])
+    .index("by_project_and_user", ["projectId", "userId"]),
+
+  blockedEmails: defineTable({
+    email: v.string(),
+    blockedAt: v.number(),
+    blockedBy: v.id("users"),
+  }).index("by_email", ["email"]),
+
   projects: defineTable({
     name: v.string(),
     key: v.string(),

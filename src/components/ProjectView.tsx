@@ -22,6 +22,7 @@ interface ProjectViewProps {
 
 export function ProjectView({ projectId }: ProjectViewProps) {
   const project = useQuery(api.projects.get, { id: projectId });
+  const currentUser = useQuery(api.users.current);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [viewingIssue, setViewingIssue] = useState<IssueWithAssignee | null>(null);
   const [isCreatingIssue, setIsCreatingIssue] = useState(false);
@@ -56,13 +57,15 @@ export function ProjectView({ projectId }: ProjectViewProps) {
             <h2>{project.name}</h2>
           </div>
           <div className="project-view-controls">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => setShowProjectSettings(true)}
-            >
-              Settings
-            </button>
+            {currentUser?.isAdmin && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowProjectSettings(true)}
+              >
+                Settings
+              </button>
+            )}
             <SearchBar
               value={searchQuery}
               onChange={setSearchQuery}

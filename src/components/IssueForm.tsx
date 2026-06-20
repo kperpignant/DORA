@@ -223,7 +223,7 @@ export function IssueForm({ projectId, issue, onClose }: IssueFormProps) {
 
           <div className="form-group">
             <label htmlFor="assignee">Assignee</label>
-            <AssigneeSelect value={assigneeId} onChange={setAssigneeId} />
+            <AssigneeSelect projectId={projectId} value={assigneeId} onChange={setAssigneeId} />
           </div>
 
           <div className="form-row">

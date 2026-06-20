@@ -7,7 +7,7 @@ import {
 } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { requireAllowedActionUser, requireAllowedUser } from "./security";
+import { requireAllowedActionUser, requireProjectAccess } from "./security";
 
 const severityUnion = v.union(
   v.literal("critical"),
@@ -185,6 +185,13 @@ export const regenerate = action({
   args: { issueId: v.id("issues") },
   handler: async (ctx, args) => {
     await requireAllowedActionUser(ctx);
+    const issue = await ctx.runQuery(internal.issues.getInternal, {
+      issueId: args.issueId,
+    });
+    if (!issue) throw new Error("Issue not found");
+    await ctx.runQuery(internal.issues.assertProjectAccess, {
+      projectId: issue.projectId,
+    });
     await ctx.runMutation(internal.aiSummaries.scheduleGeneration, {
       issueId: args.issueId,
     });
@@ -201,9 +208,9 @@ export const regenerate = action({
 export const applySuggestedSeverity = mutation({
   args: { issueId: v.id("issues") },
   handler: async (ctx, { issueId }) => {
-    await requireAllowedUser(ctx);
     const issue = await ctx.db.get(issueId);
     if (!issue) throw new Error("Issue not found");
+    await requireProjectAccess(ctx, issue.projectId);
     const sev = issue.aiSummary?.suggestedSeverity;
     if (!sev) throw new Error("No suggested severity to apply");
     await ctx.db.patch(issueId, { severity: sev, updatedAt: Date.now() });
@@ -213,9 +220,9 @@ export const applySuggestedSeverity = mutation({
 export const applySuggestedPriority = mutation({
   args: { issueId: v.id("issues") },
   handler: async (ctx, { issueId }) => {
-    await requireAllowedUser(ctx);
     const issue = await ctx.db.get(issueId);
     if (!issue) throw new Error("Issue not found");
+    await requireProjectAccess(ctx, issue.projectId);
     const pri = issue.aiSummary?.suggestedPriority;
     if (!pri) throw new Error("No suggested priority to apply");
     await ctx.db.patch(issueId, { priority: pri, updatedAt: Date.now() });
@@ -225,9 +232,9 @@ export const applySuggestedPriority = mutation({
 export const applySuggestedAssignee = mutation({
   args: { issueId: v.id("issues") },
   handler: async (ctx, { issueId }) => {
-    await requireAllowedUser(ctx);
     const issue = await ctx.db.get(issueId);
     if (!issue) throw new Error("Issue not found");
+    await requireProjectAccess(ctx, issue.projectId);
     const userId = issue.aiSummary?.suggestedAssigneeId;
     if (!userId) throw new Error("No suggested assignee to apply");
     const user = await ctx.db.get(userId as Id<"users">);
@@ -242,9 +249,9 @@ export const applySuggestedAssignee = mutation({
 export const applyAllSuggestions = mutation({
   args: { issueId: v.id("issues") },
   handler: async (ctx, { issueId }) => {
-    await requireAllowedUser(ctx);
     const issue = await ctx.db.get(issueId);
     if (!issue) throw new Error("Issue not found");
+    await requireProjectAccess(ctx, issue.projectId);
     const ai = issue.aiSummary;
     if (!ai || ai.status !== "complete") return;
     const patch: Record<string, unknown> = { updatedAt: Date.now() };
