@@ -273,6 +273,7 @@ This invokes the Convex CLI via `node` directly, avoiding Linux `Permission deni
 
 3. Set Render **Publish Directory** to `dist`.
 4. Ensure `ALLOWED_EMAILS`, `ADMIN_EMAILS`, and other Convex env vars are set on your Convex deployment (not only on Render).
+5. Build-time tooling (`typescript`, `vite`, `@types/node`) lives in `devDependencies`. Render sets `NODE_ENV=production`, which normally makes `npm install` skip them — causing failures like `Cannot find name 'process'` during the Convex typecheck. The committed **`.npmrc`** (`include=dev`) forces dev dependencies to install, so `tsc -b`, `vite build`, and the Convex typecheck all work. Do **not** delete `.npmrc`.
 
 ---
 
