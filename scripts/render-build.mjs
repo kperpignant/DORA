@@ -37,6 +37,59 @@ if (!fs.existsSync(convexCli)) {
   process.exit(1);
 }
 
+// #region agent log
+// Render-side preflight diagnostics for the TS2591 "Cannot find name 'process'"
+// issue. We compute the exact set of files in the app tsc program and whether
+// @types/node global types are included, then print to stdout (Render logs).
+function preflight() {
+  const out = { hypotheses: "H8=appProgramMissingTypesNode, H9=convexSourceInAppProgram, H10=typesNodeFilesMissingOnDisk" };
+
+  const typesNodeDir = path.join(root, "node_modules", "@types", "node");
+  out.typesNodeDirExists = fs.existsSync(typesNodeDir);
+  out.globalsDtsExists = fs.existsSync(path.join(typesNodeDir, "globals.d.ts"));
+  out.indexDtsExists = fs.existsSync(path.join(typesNodeDir, "index.d.ts"));
+  out.processDtsExists = fs.existsSync(path.join(typesNodeDir, "process.d.ts"));
+  try {
+    out.typesNodeVersion = JSON.parse(
+      fs.readFileSync(path.join(typesNodeDir, "package.json"), "utf8")
+    ).version;
+  } catch {
+    out.typesNodeVersion = null;
+  }
+
+  const tscBin = path.join(root, "node_modules", "typescript", "bin", "tsc");
+  const ver = spawnSync(process.execPath, [tscBin, "--version"], {
+    cwd: root,
+    encoding: "utf8",
+  });
+  out.tscVersion = (ver.stdout ?? "").trim();
+
+  const listed = spawnSync(
+    process.execPath,
+    [tscBin, "-p", "tsconfig.app.json", "--listFilesOnly", "--noEmit"],
+    { cwd: root, encoding: "utf8" }
+  );
+  const files = (listed.stdout ?? "").split(/\r?\n/).filter(Boolean);
+  out.appProgramFileCount = files.length;
+  out.appIncludesTypesNodeGlobals = files.some((f) =>
+    f.includes("@types/node/globals.d.ts")
+  );
+  out.appIncludesAnyTypesNode = files.some((f) => f.includes("@types/node/"));
+  out.appIncludesConvexAiAgent = files.some((f) =>
+    /[\\/]convex[\\/]aiAgent\.ts$/.test(f)
+  );
+  out.appIncludesConvexSecurity = files.some((f) =>
+    /[\\/]convex[\\/]security\.ts$/.test(f)
+  );
+
+  console.log("=== RENDER PREFLIGHT DIAGNOSTIC START ===");
+  console.log(JSON.stringify(out, null, 2));
+  console.log("=== RENDER PREFLIGHT DIAGNOSTIC END ===");
+  log("render-build preflight", out);
+}
+preflight();
+// #endregion
+
 const result = spawnSync(
   process.execPath,
   [
