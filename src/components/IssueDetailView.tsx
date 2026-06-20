@@ -12,6 +12,7 @@ import { formatUserLabel } from "../lib/formatUserLabel";
 import { IssueForm } from "./IssueForm";
 import { AiSummaryPanel } from "./AiSummaryPanel";
 import { IssueAttachments } from "./IssueAttachments";
+import { CodeBlock } from "./CodeBlock";
 
 interface IssueWithAssignee extends Doc<"issues"> {
   assignee?: Doc<"users"> | null;
@@ -121,6 +122,13 @@ export function IssueDetailView({ issue, projectKey, onBack }: IssueDetailViewPr
                 {displayIssue.description || <span className="empty-text">No description provided</span>}
               </div>
             </div>
+
+            {displayIssue.codeLog && (
+              <div className="issue-detail-section">
+                <h3>Code / Logs</h3>
+                <CodeBlock value={displayIssue.codeLog} />
+              </div>
+            )}
 
             <div className="issue-detail-section">
               <h3>Attachments</h3>

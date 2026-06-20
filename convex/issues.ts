@@ -137,6 +137,7 @@ export const create = mutation({
     )),
     tags: v.optional(v.array(v.string())),
     assigneeId: v.optional(v.id("users")),
+    codeLog: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await requireProjectAccess(ctx, args.projectId);
@@ -167,6 +168,7 @@ export const create = mutation({
       severity: isBug ? args.severity : undefined,
       tags: args.tags,
       assigneeId: args.assigneeId,
+      codeLog: args.codeLog,
       aiSummary: isBug ? { status: "pending" as const } : undefined,
       createdAt: now,
       updatedAt: now,
@@ -205,6 +207,7 @@ export const update = mutation({
     )),
     tags: v.optional(v.array(v.string())),
     assigneeId: v.optional(v.id("users")),
+    codeLog: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const issue = await ctx.db.get(args.id);
@@ -228,6 +231,7 @@ export const update = mutation({
     if (updates.severity !== undefined) patchData.severity = updates.severity;
     if (updates.tags !== undefined) patchData.tags = updates.tags;
     if (updates.assigneeId !== undefined) patchData.assigneeId = updates.assigneeId;
+    if (updates.codeLog !== undefined) patchData.codeLog = updates.codeLog;
 
     await ctx.db.patch(id, patchData);
 
@@ -237,7 +241,8 @@ export const update = mutation({
       updates.stepsToReproduce !== undefined ||
       updates.expectedResult !== undefined ||
       updates.actualResult !== undefined ||
-      updates.tags !== undefined;
+      updates.tags !== undefined ||
+      updates.codeLog !== undefined;
     if (textChanged) {
       await ctx.scheduler.runAfter(0, internal.embeddings.embedIssue, {
         issueId: id,

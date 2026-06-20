@@ -55,6 +55,7 @@ export default defineSchema({
     type: v.union(v.literal("task"), v.literal("bug")),
     title: v.string(),
     description: v.string(),
+    codeLog: v.optional(v.string()),
     status: v.union(v.literal("todo"), v.literal("in_progress"), v.literal("done")),
     priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
     // Type-specific fields

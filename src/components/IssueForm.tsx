@@ -37,6 +37,7 @@ export function IssueForm({ projectId, issue, onClose }: IssueFormProps) {
   const [severity, setSeverity] = useState<Severity>("major");
   const [tags, setTags] = useState<string[]>([]);
   const [assigneeId, setAssigneeId] = useState<Id<"users"> | null>(null);
+  const [codeLog, setCodeLog] = useState("");
 
   const isEditing = !!issue;
 
@@ -54,6 +55,7 @@ export function IssueForm({ projectId, issue, onClose }: IssueFormProps) {
       setSeverity(issue.severity || "major");
       setTags(issue.tags || []);
       setAssigneeId(issue.assigneeId || null);
+      setCodeLog(issue.codeLog || "");
     }
   }, [issue]);
 
@@ -80,6 +82,7 @@ export function IssueForm({ projectId, issue, onClose }: IssueFormProps) {
         severity: type === "bug" ? severity : undefined,
         tags: tags.length > 0 ? tags : undefined,
         assigneeId: assigneeId || undefined,
+        codeLog: codeLog.trim() || undefined,
       });
     } else {
       await createIssue({
@@ -96,6 +99,7 @@ export function IssueForm({ projectId, issue, onClose }: IssueFormProps) {
         severity: type === "bug" ? severity : undefined,
         tags: tags.length > 0 ? tags : undefined,
         assigneeId: assigneeId || undefined,
+        codeLog: codeLog.trim() || undefined,
       });
     }
     onClose();
@@ -152,6 +156,19 @@ export function IssueForm({ projectId, issue, onClose }: IssueFormProps) {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe the issue..."
               rows={4}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="codeLog">Code / Logs</label>
+            <textarea
+              id="codeLog"
+              className="code-log-input"
+              value={codeLog}
+              onChange={(e) => setCodeLog(e.target.value)}
+              placeholder="Paste stack traces, error logs, or code snippets..."
+              rows={6}
+              spellCheck={false}
             />
           </div>
 

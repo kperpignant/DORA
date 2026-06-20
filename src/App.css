@@ -2131,3 +2131,48 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* Code / logs field */
+.code-block {
+  margin: 0;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: auto;
+  max-height: 480px;
+  white-space: pre;
+  word-break: break-word;
+  tab-size: 2;
+  color: var(--color-text);
+}
+
+.code-block code {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.code-log-input {
+  width: 100%;
+  min-height: 140px;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+  tab-size: 2;
+  white-space: pre;
+  overflow: auto;
+  color: var(--color-text);
+}
+
+.code-log-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
