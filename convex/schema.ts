@@ -49,6 +49,23 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_key", ["key"]),
 
+  epics: defineTable({
+    projectId: v.id("projects"),
+    epicNumber: v.number(),
+    name: v.string(),
+    description: v.optional(v.string()),
+    color: v.optional(v.string()),
+    status: v.union(
+      v.literal("planned"),
+      v.literal("in_progress"),
+      v.literal("done")
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_and_number", ["projectId", "epicNumber"]),
+
   issues: defineTable({
     projectId: v.id("projects"),
     issueNumber: v.number(),
@@ -78,6 +95,8 @@ export default defineSchema({
     tags: v.optional(v.array(v.string())),
     // Assignee
     assigneeId: v.optional(v.id("users")),
+    // Epic grouping
+    epicId: v.optional(v.id("epics")),
     // Embedding of title + description for RAG over past issues.
     // Optional so backfill can run async; nullable allows "tried but no key" state.
     embedding: v.optional(v.array(v.number())),
@@ -164,6 +183,7 @@ export default defineSchema({
     .index("by_project", ["projectId"])
     .index("by_project_and_number", ["projectId", "issueNumber"])
     .index("by_assignee", ["assigneeId"])
+    .index("by_epic", ["epicId"])
     .vectorIndex("by_embedding", {
       vectorField: "embedding",
       dimensions: 1536,

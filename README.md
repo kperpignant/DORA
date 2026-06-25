@@ -248,6 +248,52 @@ DORA is safe to deploy behind a public Render URL because the Render URL and `VI
 
 For production Google OAuth, make sure your Google credentials allow the Convex Auth callback URL for the deployment and that the Convex site URL setting points at the deployed site. After changing Render or Convex environment variables, redeploy/restart the affected service so the new settings are active.
 
+### Assignment notifications
+
+When someone is assigned a bug or task, DORA can email the assignee with the full issue summary and a link back to the app. Emails are sent asynchronously via [Resend](https://resend.com); assignment still works if notifications are not configured.
+
+**Setup**
+
+1. Create a [Resend](https://resend.com) account and generate an API key (`re_...`).
+2. Set these on your Convex deployment:
+
+```bash
+npx convex env set RESEND_API_KEY re_...
+npx convex env set NOTIFICATION_FROM_EMAIL "DORA <onboarding@resend.dev>"
+```
+
+`SITE_URL` (already used for Google OAuth) is included in the email body as the app link:
+
+```bash
+# local
+npx convex env set SITE_URL http://localhost:5173
+
+# production
+npx convex env set SITE_URL https://your-dora-app.onrender.com
+```
+
+**Sandbox vs production sender**
+
+| Environment | `NOTIFICATION_FROM_EMAIL` | Recipients |
+|---|---|---|
+| Dev / testing | `DORA <onboarding@resend.dev>` | Usually only the email on your Resend account |
+| Production | `DORA <notifications@yourdomain.com>` | Any assignee — requires verifying your domain in Resend (SPF/DKIM DNS records) |
+
+**When emails send**
+
+- Assignee changes on create, edit, kanban drag, or applying an AI-suggested assignee
+- Skipped for self-assignment and when assignee is unchanged
+- Skipped if `RESEND_API_KEY` or `NOTIFICATION_FROM_EMAIL` is unset
+
+**Testing**
+
+1. Confirm env vars with `npx convex env list`. `RESEND_API_KEY` must be a real key from the Resend dashboard (not a placeholder).
+2. Assign an issue to a **teammate** (not yourself) who is on `ALLOWED_EMAILS` and has a Google email on file.
+3. Check the assignee's inbox. If nothing arrives, open the Convex dashboard **Logs** and search for `Assignment email`.
+4. Common failures: unverified domain (use sandbox sender for dev), invalid `from` address, or missing assignee email.
+
+Implementation lives in `convex/notifications.ts`.
+
 ### Deploying to Render
 
 1. In the Convex dashboard, generate a **Production deploy key** for your project and add it to Render as `CONVEX_DEPLOY_KEY`.
@@ -272,7 +318,7 @@ npm install && npm run deploy:render
 This invokes the Convex CLI via `node` directly, avoiding Linux `Permission denied` errors when `node_modules/.bin/convex` is not executable. Do **not** commit `node_modules/` to git — it should be listed in `.gitignore` and installed fresh on Render.
 
 3. Set Render **Publish Directory** to `dist`.
-4. Ensure `ALLOWED_EMAILS`, `ADMIN_EMAILS`, and other Convex env vars are set on your Convex deployment (not only on Render).
+4. Ensure `ALLOWED_EMAILS`, `ADMIN_EMAILS`, `RESEND_API_KEY`, `NOTIFICATION_FROM_EMAIL`, `SITE_URL`, and other Convex env vars are set on your Convex deployment (not only on Render).
 5. Build-time tooling (`typescript`, `vite`, `@types/node`) lives in `devDependencies`. Render sets `NODE_ENV=production`, which normally makes `npm install` skip them — causing failures like `Cannot find name 'process'` during the Convex typecheck. The committed **`.npmrc`** (`include=dev`) forces dev dependencies to install, so `tsc -b`, `vite build`, and the Convex typecheck all work. Do **not** delete `.npmrc`.
 
 ---

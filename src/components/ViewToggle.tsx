@@ -1,4 +1,4 @@
-type ViewMode = "list" | "kanban";
+type ViewMode = "list" | "kanban" | "epics";
 
 interface ViewToggleProps {
   view: ViewMode;
@@ -27,6 +27,16 @@ export function ViewToggle({ view, onChange }: ViewToggleProps) {
           <path d="M2 2h3v12H2V2zm4.5 0h3v12h-3V2zM11 2h3v12h-3V2z"/>
         </svg>
         Kanban
+      </button>
+      <button
+        className={`view-toggle-btn ${view === "epics" ? "active" : ""}`}
+        onClick={() => onChange("epics")}
+        title="Epics"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M2 2h5v5H2V2zm7 0h5v3H9V2zM2 9h5v5H2V9zm7 2h5v3H9v-3z"/>
+        </svg>
+        Epics
       </button>
     </div>
   );

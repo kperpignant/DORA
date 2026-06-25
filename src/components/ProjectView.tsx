@@ -6,11 +6,12 @@ import { IssueList } from "./IssueList";
 import { IssueForm } from "./IssueForm";
 import { IssueDetailView } from "./IssueDetailView";
 import { KanbanBoard } from "./KanbanBoard";
+import { EpicsView } from "./EpicsView";
 import { ViewToggle } from "./ViewToggle";
 import { SearchBar } from "./SearchBar";
 import { ProjectSettingsForm } from "./ProjectSettingsForm";
 
-type ViewMode = "list" | "kanban";
+type ViewMode = "list" | "kanban" | "epics";
 
 interface IssueWithAssignee extends Doc<"issues"> {
   assignee?: Doc<"users"> | null;
@@ -87,13 +88,19 @@ export function ProjectView({ projectId }: ProjectViewProps) {
           onViewIssue={setViewingIssue}
           onCreateIssue={() => setIsCreatingIssue(true)}
         />
-      ) : (
+      ) : viewMode === "kanban" ? (
         <KanbanBoard
           projectId={projectId}
           projectKey={project.key}
           searchQuery={searchQuery}
           onViewIssue={setViewingIssue}
           onCreateIssue={() => setIsCreatingIssue(true)}
+        />
+      ) : (
+        <EpicsView
+          projectId={projectId}
+          projectKey={project.key}
+          onViewIssue={setViewingIssue}
         />
       )}
 
