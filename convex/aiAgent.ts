@@ -4,6 +4,7 @@ import {
   internalMutation,
   internalQuery,
   type ActionCtx,
+  type QueryCtx,
 } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -64,6 +65,7 @@ export const getIssueByNumberInternal = internalQuery({
     const assignee = issue.assigneeId
       ? await ctx.db.get(issue.assigneeId)
       : null;
+    const epic = issue.epicId ? await ctx.db.get(issue.epicId) : null;
     return {
       _id: issue._id,
       issueNumber: issue.issueNumber,
@@ -78,7 +80,70 @@ export const getIssueByNumberInternal = internalQuery({
       expectedResult: issue.expectedResult,
       actualResult: issue.actualResult,
       assigneeName: assignee?.name ?? null,
+      epicNumber: epic?.epicNumber ?? null,
+      epicName: epic?.name ?? null,
     };
+  },
+});
+
+/**
+ * Epic context shared by the initial prompt and the get_epic tool. Epics
+ * group issues by feature, so this gives the agent the surrounding feature
+ * scope and sibling issues that may be duplicates/regressions/related work.
+ */
+export type EpicContext = {
+  epicNumber: number;
+  name: string;
+  description: string | null;
+  status: "planned" | "in_progress" | "done";
+  issues: Array<{
+    issueNumber: number;
+    title: string;
+    type: "bug" | "task";
+    status: "todo" | "in_progress" | "blocked" | "done";
+  }>;
+};
+
+async function loadEpicWithIssues(
+  ctx: QueryCtx,
+  epicId: Id<"epics">
+): Promise<EpicContext | null> {
+  const epic = await ctx.db.get(epicId);
+  if (!epic) return null;
+  const issues = await ctx.db
+    .query("issues")
+    .withIndex("by_epic", (q) => q.eq("epicId", epicId))
+    .collect();
+  return {
+    epicNumber: epic.epicNumber,
+    name: epic.name,
+    description: epic.description ?? null,
+    status: epic.status,
+    issues: issues.map((i) => ({
+      issueNumber: i.issueNumber,
+      title: i.title,
+      type: i.type,
+      status: i.status,
+    })),
+  };
+}
+
+export const getEpicContextInternal = internalQuery({
+  args: { epicId: v.id("epics") },
+  handler: async (ctx, { epicId }) => await loadEpicWithIssues(ctx, epicId),
+});
+
+export const getEpicByNumberInternal = internalQuery({
+  args: { projectId: v.id("projects"), epicNumber: v.number() },
+  handler: async (ctx, { projectId, epicNumber }) => {
+    const epic = await ctx.db
+      .query("epics")
+      .withIndex("by_project_and_number", (q) =>
+        q.eq("projectId", projectId).eq("epicNumber", epicNumber)
+      )
+      .first();
+    if (!epic) return null;
+    return await loadEpicWithIssues(ctx, epic._id);
   },
 });
 
@@ -210,13 +275,29 @@ const TOOLS: ToolDef[] = [
     function: {
       name: "get_issue",
       description:
-        "Fetch the full details (title, description, status, assignee) of a specific issue by its issue number within this project.",
+        "Fetch the full details (title, description, status, assignee, epic) of a specific issue by its issue number within this project.",
       parameters: {
         type: "object",
         properties: {
           issue_number: { type: "integer" },
         },
         required: ["issue_number"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_epic",
+      description:
+        "Fetch an epic (a feature grouping of issues) by its epic number within this project, including the issues that belong to it. Use this to understand the broader feature the bug is part of and to spot related work, duplicates, or regressions within the same epic.",
+      parameters: {
+        type: "object",
+        properties: {
+          epic_number: { type: "integer" },
+        },
+        required: ["epic_number"],
         additionalProperties: false,
       },
     },
@@ -406,6 +487,33 @@ async function toolGetIssue(
     expected_result: issue.expectedResult ?? null,
     actual_result: issue.actualResult ?? null,
     assignee: issue.assigneeName,
+    epic: issue.epicNumber
+      ? { epic_number: issue.epicNumber, name: issue.epicName }
+      : null,
+  };
+}
+
+async function toolGetEpic(
+  ctx: ActionCtx,
+  args: { epic_number: number },
+  projectId: Id<"projects">
+): Promise<Record<string, unknown> | { error: string }> {
+  const epic = await ctx.runQuery(internal.aiAgent.getEpicByNumberInternal, {
+    projectId,
+    epicNumber: args.epic_number,
+  });
+  if (!epic) return { error: `No epic with number ${args.epic_number}` };
+  return {
+    epic_number: epic.epicNumber,
+    name: epic.name,
+    description: epic.description,
+    status: epic.status,
+    issues: epic.issues.map((i) => ({
+      issue_number: i.issueNumber,
+      title: i.title,
+      type: i.type,
+      status: i.status,
+    })),
   };
 }
 
@@ -503,17 +611,19 @@ function buildSystemPrompt(): string {
   return [
     "You are DORA's bug-triage agent. Your job is to triage a single incoming bug ticket.",
     "",
-    "You have access to four tools:",
+    "You have access to five tools:",
     "  - search_similar_issues: do RAG over this project's history to find duplicates, regressions, and related work.",
     "  - get_issue: fetch full details of one issue by its number.",
+    "  - get_epic: fetch a feature epic by its number, including the issues grouped under it. Epics group issues by feature.",
     "  - propose_assignee: given issue numbers, rank past assignees.",
     "  - finalize_triage: emit your final structured decision. You MUST call this exactly once to finish.",
     "",
     "Strategy:",
     "  1. ALWAYS start by calling search_similar_issues with a focused query. If the project has any history, this is your most valuable signal.",
     "  2. If a hit looks suspicious (very high similarity, similar title), call get_issue on it to confirm whether it's a duplicate or regression.",
-    "  3. Once you have 1-3 strong similar issues, call propose_assignee with their numbers to see who's worked on this area before.",
-    "  4. Finally, call finalize_triage. Use the similar issues you found to populate `related_issues` (mark duplicates, regressions, related). Use propose_assignee output to pick suggested_assignee_user_id.",
+    "  3. If the bug belongs to an epic, or a similar issue references one, consider calling get_epic to understand the feature scope and check sibling issues for duplicates/regressions.",
+    "  4. Once you have 1-3 strong similar issues, call propose_assignee with their numbers to see who's worked on this area before.",
+    "  5. Finally, call finalize_triage. Use the similar issues you found to populate `related_issues` (mark duplicates, regressions, related). Use propose_assignee output to pick suggested_assignee_user_id.",
     "",
     "Be decisive. Don't make more than 2 search_similar_issues calls. If you can't find anything similar, that's fine — proceed to finalize_triage based on the bug's text alone.",
     "Keep reasoning concise. Edge cases and possible_solutions should be concrete and actionable, not generic.",
@@ -542,7 +652,8 @@ function buildUserPrompt(
     stepsToReproduce?: string;
     expectedResult?: string;
     actualResult?: string;
-  }
+  },
+  epic?: EpicContext | null
 ): string {
   const lines: string[] = [
     `# Project: ${project.name}`,
@@ -559,6 +670,29 @@ function buildUserPrompt(
       lines.push(`Known constraints: ${s.knownConstraints.trim()}`);
     if (s.glossary?.trim()) lines.push(`Glossary: ${s.glossary.trim()}`);
   }
+
+  if (epic) {
+    lines.push(
+      "",
+      `# Epic context: ${epic.name} (E${epic.epicNumber}, status: ${epic.status})`,
+      "This bug is part of the above feature epic.",
+      epic.description?.trim()
+        ? `Epic description: ${epic.description.trim()}`
+        : "Epic description: (none)"
+    );
+    const siblings = epic.issues.filter(
+      (i) => i.issueNumber !== issue.issueNumber
+    );
+    if (siblings.length > 0) {
+      lines.push("Other issues in this epic:");
+      for (const sib of siblings.slice(0, 20)) {
+        lines.push(
+          `  - #${sib.issueNumber} [${sib.type}/${sib.status}] ${sib.title}`
+        );
+      }
+    }
+  }
+
   lines.push(
     "",
     `# Incoming bug (#${issue.issueNumber})`,
@@ -702,28 +836,33 @@ export async function runTriageAgent(args: {
   ctx: ActionCtx;
   issue: Doc<"issues">;
   project: Doc<"projects">;
+  epic?: EpicContext | null;
   apiKey: string;
   model: string;
   record: boolean;
 }): Promise<AgentResult> {
-  const { ctx, issue, project, apiKey, model, record } = args;
+  const { ctx, issue, project, epic, apiKey, model, record } = args;
   const state: AgentState = { similarByNumber: new Map() };
 
   const messages: ChatMessage[] = [
     { role: "system", content: buildSystemPrompt() },
     {
       role: "user",
-      content: buildUserPrompt(project, {
-        issueNumber: issue.issueNumber,
-        title: issue.title,
-        description: issue.description,
-        priority: issue.priority,
-        severity: issue.severity,
-        tags: issue.tags,
-        stepsToReproduce: issue.stepsToReproduce,
-        expectedResult: issue.expectedResult,
-        actualResult: issue.actualResult,
-      }),
+      content: buildUserPrompt(
+        project,
+        {
+          issueNumber: issue.issueNumber,
+          title: issue.title,
+          description: issue.description,
+          priority: issue.priority,
+          severity: issue.severity,
+          tags: issue.tags,
+          stepsToReproduce: issue.stepsToReproduce,
+          expectedResult: issue.expectedResult,
+          actualResult: issue.actualResult,
+        },
+        epic ?? null
+      ),
     },
   ];
 
@@ -806,6 +945,12 @@ export async function runTriageAgent(args: {
           toolOutput = await toolGetIssue(
             ctx,
             parsedArgs as { issue_number: number },
+            issue.projectId
+          );
+        } else if (name === "get_epic") {
+          toolOutput = await toolGetEpic(
+            ctx,
+            parsedArgs as { epic_number: number },
             issue.projectId
           );
         } else if (name === "propose_assignee") {
@@ -985,6 +1130,11 @@ export const runAgentForIssue = internalAction({
         tokensOut: 0,
       };
     }
+    const epic = issue.epicId
+      ? await ctx.runQuery(internal.aiAgent.getEpicContextInternal, {
+          epicId: issue.epicId,
+        })
+      : null;
     const apiKey = process.env.OPENROUTER_API_KEY;
     const model =
       args.modelOverride ??
@@ -1004,6 +1154,7 @@ export const runAgentForIssue = internalAction({
       ctx,
       issue,
       project,
+      epic,
       apiKey,
       model,
       record: args.record ?? true,
