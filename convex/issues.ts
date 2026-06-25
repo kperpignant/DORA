@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { action, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { scheduleAssignmentEmail } from "./notifications";
 import { requireAllowedActionUser, requireProjectAccess } from "./security";
 
 export const assertProjectAccess = internalQuery({
@@ -145,7 +146,7 @@ export const create = mutation({
     codeLog: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireProjectAccess(ctx, args.projectId);
+    const user = await requireProjectAccess(ctx, args.projectId);
     const existingIssues = await ctx.db
       .query("issues")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
@@ -189,6 +190,14 @@ export const create = mutation({
       });
     }
 
+    if (args.assigneeId) {
+      await scheduleAssignmentEmail(ctx, {
+        issueId: id,
+        assigneeId: args.assigneeId,
+        assignedByUserId: user._id,
+      });
+    }
+
     return id;
   },
 });
@@ -224,7 +233,7 @@ export const update = mutation({
   handler: async (ctx, args) => {
     const issue = await ctx.db.get(args.id);
     if (!issue) throw new Error("Issue not found");
-    await requireProjectAccess(ctx, issue.projectId);
+    const user = await requireProjectAccess(ctx, issue.projectId);
 
     const { id, ...updates } = args;
 
@@ -258,6 +267,15 @@ export const update = mutation({
     if (textChanged) {
       await ctx.scheduler.runAfter(0, internal.embeddings.embedIssue, {
         issueId: id,
+      });
+    }
+
+    if (updates.assigneeId !== undefined) {
+      await scheduleAssignmentEmail(ctx, {
+        issueId: id,
+        assigneeId: updates.assigneeId,
+        assignedByUserId: user._id,
+        previousAssigneeId: issue.assigneeId,
       });
     }
   },

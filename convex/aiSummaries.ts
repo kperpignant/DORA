@@ -7,6 +7,7 @@ import {
 } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { scheduleAssignmentEmail } from "./notifications";
 import { requireAllowedActionUser, requireProjectAccess } from "./security";
 
 const severityUnion = v.union(
@@ -235,7 +236,7 @@ export const applySuggestedAssignee = mutation({
   handler: async (ctx, { issueId }) => {
     const issue = await ctx.db.get(issueId);
     if (!issue) throw new Error("Issue not found");
-    await requireProjectAccess(ctx, issue.projectId);
+    const assigner = await requireProjectAccess(ctx, issue.projectId);
     const userId = issue.aiSummary?.suggestedAssigneeId;
     if (!userId) throw new Error("No suggested assignee to apply");
     const user = await ctx.db.get(userId as Id<"users">);
@@ -243,6 +244,12 @@ export const applySuggestedAssignee = mutation({
     await ctx.db.patch(issueId, {
       assigneeId: userId as Id<"users">,
       updatedAt: Date.now(),
+    });
+    await scheduleAssignmentEmail(ctx, {
+      issueId,
+      assigneeId: userId as Id<"users">,
+      assignedByUserId: assigner._id,
+      previousAssigneeId: issue.assigneeId,
     });
   },
 });
@@ -252,7 +259,7 @@ export const applyAllSuggestions = mutation({
   handler: async (ctx, { issueId }) => {
     const issue = await ctx.db.get(issueId);
     if (!issue) throw new Error("Issue not found");
-    await requireProjectAccess(ctx, issue.projectId);
+    const assigner = await requireProjectAccess(ctx, issue.projectId);
     const ai = issue.aiSummary;
     if (!ai || ai.status !== "complete") return;
     const patch: Record<string, unknown> = { updatedAt: Date.now() };
@@ -263,5 +270,13 @@ export const applyAllSuggestions = mutation({
       if (user) patch.assigneeId = ai.suggestedAssigneeId;
     }
     await ctx.db.patch(issueId, patch);
+    if (typeof patch.assigneeId === "string") {
+      await scheduleAssignmentEmail(ctx, {
+        issueId,
+        assigneeId: patch.assigneeId as Id<"users">,
+        assignedByUserId: assigner._id,
+        previousAssigneeId: issue.assigneeId,
+      });
+    }
   },
 });

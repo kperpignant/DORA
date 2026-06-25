@@ -17,6 +17,7 @@ import type * as embeddings from "../embeddings.js";
 import type * as evals from "../evals.js";
 import type * as http from "../http.js";
 import type * as issues from "../issues.js";
+import type * as notifications from "../notifications.js";
 import type * as projects from "../projects.js";
 import type * as security from "../security.js";
 import type * as users from "../users.js";
@@ -37,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   evals: typeof evals;
   http: typeof http;
   issues: typeof issues;
+  notifications: typeof notifications;
   projects: typeof projects;
   security: typeof security;
   users: typeof users;
