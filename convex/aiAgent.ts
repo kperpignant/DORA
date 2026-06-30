@@ -359,6 +359,12 @@ const TOOLS: ToolDef[] = [
             type: "string",
             description: "Why this assignee? Cite past issues if relevant.",
           },
+          suggested_tags: {
+            type: "array",
+            items: { type: "string" },
+            description:
+              "Suggested tags to categorize this bug (e.g. area, component, symptom). Use lowercase, concise labels.",
+          },
           related_issues: {
             type: "array",
             description:
@@ -592,6 +598,7 @@ export type AgentResult = {
   possibleSolutions?: string[];
   suggestedAssigneeId?: Id<"users">;
   suggestedAssigneeReason?: string;
+  suggestedTags?: string[];
   similarIssues?: Array<{
     issueId: Id<"issues">;
     issueNumber: number;
@@ -623,7 +630,7 @@ function buildSystemPrompt(): string {
     "  2. If a hit looks suspicious (very high similarity, similar title), call get_issue on it to confirm whether it's a duplicate or regression.",
     "  3. If the bug belongs to an epic, or a similar issue references one, consider calling get_epic to understand the feature scope and check sibling issues for duplicates/regressions.",
     "  4. Once you have 1-3 strong similar issues, call propose_assignee with their numbers to see who's worked on this area before.",
-    "  5. Finally, call finalize_triage. Use the similar issues you found to populate `related_issues` (mark duplicates, regressions, related). Use propose_assignee output to pick suggested_assignee_user_id.",
+    "  5. Finally, call finalize_triage. Use the similar issues you found to populate `related_issues` (mark duplicates, regressions, related). Use propose_assignee output to pick suggested_assignee_user_id. Include 2-5 suggested_tags that categorize the bug (area, component, symptom).",
     "",
     "Be decisive. Don't make more than 2 search_similar_issues calls. If you can't find anything similar, that's fine — proceed to finalize_triage based on the bug's text alone.",
     "Keep reasoning concise. Edge cases and possible_solutions should be concrete and actionable, not generic.",
@@ -771,6 +778,7 @@ function parseFinalize(rawArgs: string): {
   possibleSolutions?: string[];
   suggestedAssigneeUserId?: string;
   suggestedAssigneeReason?: string;
+  suggestedTags?: string[];
   relatedIssues?: Array<{
     issue_number: number;
     relation?: "duplicate" | "related" | "regression";
@@ -823,6 +831,11 @@ function parseFinalize(rawArgs: string): {
       typeof obj.suggested_assignee_reason === "string"
         ? obj.suggested_assignee_reason
         : undefined,
+    suggestedTags: Array.isArray(obj.suggested_tags)
+      ? (obj.suggested_tags as unknown[]).filter(
+          (x): x is string => typeof x === "string" && x.trim().length > 0
+        )
+      : undefined,
     relatedIssues: related,
   };
 }
@@ -1080,6 +1093,7 @@ export async function runTriageAgent(args: {
     possibleSolutions: parsed.possibleSolutions,
     suggestedAssigneeId,
     suggestedAssigneeReason: parsed.suggestedAssigneeReason,
+    suggestedTags: parsed.suggestedTags,
     similarIssues: similarOut.length > 0 ? similarOut : undefined,
     model,
     tokensIn,

@@ -11,10 +11,11 @@ import { ViewToggle } from "./ViewToggle";
 import { SearchBar } from "./SearchBar";
 import { ProjectSettingsForm } from "./ProjectSettingsForm";
 
-type ViewMode = "list" | "kanban" | "epics";
+type ViewMode = "list" | "kanban" | "epics" | "mine";
 
 interface IssueWithAssignee extends Doc<"issues"> {
   assignee?: Doc<"users"> | null;
+  epic?: Doc<"epics"> | null;
 }
 
 interface ProjectViewProps {
@@ -88,6 +89,20 @@ export function ProjectView({ projectId }: ProjectViewProps) {
           onViewIssue={setViewingIssue}
           onCreateIssue={() => setIsCreatingIssue(true)}
         />
+      ) : viewMode === "mine" ? (
+        currentUser ? (
+          <IssueList
+            projectId={projectId}
+            projectKey={project.key}
+            searchQuery={searchQuery}
+            onViewIssue={setViewingIssue}
+            onCreateIssue={() => setIsCreatingIssue(true)}
+            lockedAssigneeId={currentUser._id}
+            title="My Issues"
+          />
+        ) : (
+          <p className="loading">Loading...</p>
+        )
       ) : viewMode === "kanban" ? (
         <KanbanBoard
           projectId={projectId}

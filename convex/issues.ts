@@ -1,8 +1,17 @@
 import { v } from "convex/values";
-import { action, internalQuery, mutation, query } from "./_generated/server";
+import { action, internalQuery, mutation, query, type QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { scheduleAssignmentEmail } from "./notifications";
 import { requireAllowedActionUser, requireProjectAccess } from "./security";
+import type { Doc } from "./_generated/dataModel";
+
+async function attachAssigneeAndEpic(ctx: QueryCtx, issue: Doc<"issues">) {
+  const assignee = issue.assigneeId
+    ? await ctx.db.get(issue.assigneeId)
+    : null;
+  const epic = issue.epicId ? await ctx.db.get(issue.epicId) : null;
+  return { ...issue, assignee, epic };
+}
 
 export const assertProjectAccess = internalQuery({
   args: { projectId: v.id("projects") },
@@ -29,12 +38,7 @@ export const listByProject = query({
       .collect();
 
     const issuesWithAssignees = await Promise.all(
-      issues.map(async (issue) => {
-        const assignee = issue.assigneeId
-          ? await ctx.db.get(issue.assigneeId)
-          : null;
-        return { ...issue, assignee };
-      })
+      issues.map((issue) => attachAssigneeAndEpic(ctx, issue))
     );
 
     return issuesWithAssignees;
@@ -66,12 +70,7 @@ export const search = query({
     });
 
     const issuesWithAssignees = await Promise.all(
-      filtered.map(async (issue) => {
-        const assignee = issue.assigneeId
-          ? await ctx.db.get(issue.assigneeId)
-          : null;
-        return { ...issue, assignee };
-      })
+      filtered.map((issue) => attachAssigneeAndEpic(ctx, issue))
     );
 
     return issuesWithAssignees;
@@ -86,11 +85,7 @@ export const get = query({
 
     await requireProjectAccess(ctx, issue.projectId);
 
-    const assignee = issue.assigneeId
-      ? await ctx.db.get(issue.assigneeId)
-      : null;
-
-    return { ...issue, assignee };
+    return await attachAssigneeAndEpic(ctx, issue);
   },
 });
 
@@ -110,11 +105,7 @@ export const getByProjectAndNumber = query({
 
     if (!issue) return null;
 
-    const assignee = issue.assigneeId
-      ? await ctx.db.get(issue.assigneeId)
-      : null;
-
-    return { ...issue, assignee };
+    return await attachAssigneeAndEpic(ctx, issue);
   },
 });
 
@@ -326,6 +317,15 @@ export const remove = mutation({
     for (const attachment of attachments) {
       await ctx.storage.delete(attachment.storageId);
       await ctx.db.delete(attachment._id);
+    }
+
+    const comments = await ctx.db
+      .query("comments")
+      .withIndex("by_issue", (q) => q.eq("issueId", args.id))
+      .collect();
+
+    for (const comment of comments) {
+      await ctx.db.delete(comment._id);
     }
 
     await ctx.db.delete(args.id);

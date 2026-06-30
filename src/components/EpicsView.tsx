@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Doc, Id } from "../../convex/_generated/dataModel";
@@ -25,6 +25,13 @@ export function EpicsView({ projectId, projectKey, onViewIssue }: EpicsViewProps
   const epics = useQuery(api.epics.listByProject, { projectId });
   const [viewingEpic, setViewingEpic] = useState<EpicWithProgress | null>(null);
   const [isCreatingEpic, setIsCreatingEpic] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"all" | "planned" | "in_progress" | "done">("all");
+
+  const filteredEpics = useMemo(() => {
+    if (!epics) return [];
+    if (statusFilter === "all") return epics;
+    return epics.filter((epic) => epic.status === statusFilter);
+  }, [epics, statusFilter]);
 
   if (viewingEpic) {
     return (
@@ -41,19 +48,43 @@ export function EpicsView({ projectId, projectKey, onViewIssue }: EpicsViewProps
   return (
     <div className="epics-view">
       <div className="epics-view-header">
-        <h3>Epics</h3>
-        <button className="btn btn-primary" onClick={() => setIsCreatingEpic(true)}>
-          + New Epic
-        </button>
+        <h3>
+          Epics
+          {epics && statusFilter !== "all" && (
+            <span className="search-results-count"> ({filteredEpics.length} results)</span>
+          )}
+        </h3>
+        <div className="epics-view-controls">
+          <select
+            className="sort-select"
+            value={statusFilter}
+            onChange={(e) =>
+              setStatusFilter(e.target.value as typeof statusFilter)
+            }
+            title="Filter by status"
+          >
+            <option value="all">All statuses</option>
+            <option value="planned">Planned</option>
+            <option value="in_progress">In Progress</option>
+            <option value="done">Done</option>
+          </select>
+          <button className="btn btn-primary" onClick={() => setIsCreatingEpic(true)}>
+            + New Epic
+          </button>
+        </div>
       </div>
 
       <div className="epic-cards">
         {epics === undefined ? (
           <p className="loading">Loading epics...</p>
-        ) : epics.length === 0 ? (
-          <p className="empty">No epics yet. Create one to group issues by feature.</p>
+        ) : filteredEpics.length === 0 ? (
+          <p className="empty">
+            {statusFilter !== "all"
+              ? "No epics match the current filter."
+              : "No epics yet. Create one to group issues by feature."}
+          </p>
         ) : (
-          epics.map((epic) => (
+          filteredEpics.map((epic) => (
             <EpicCard
               key={epic._id}
               epic={epic}

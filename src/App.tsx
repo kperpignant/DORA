@@ -14,6 +14,7 @@ import "./App.css";
 function AuthenticatedApp() {
   const [selectedProjectId, setSelectedProjectId] = useState<Id<"projects"> | null>(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { signOut } = useAuthActions();
   const user = useQuery(api.users.current);
 
@@ -75,13 +76,22 @@ function AuthenticatedApp() {
           </section>
         ) : (
           <>
-            <aside className="sidebar">
+            <aside className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
               <ProjectList
                 selectedProjectId={selectedProjectId}
                 onSelectProject={setSelectedProjectId}
                 isAdmin={user.isAdmin}
               />
             </aside>
+            <button
+              type="button"
+              className={`sidebar-toggle ${sidebarCollapsed ? "collapsed" : ""}`}
+              onClick={() => setSidebarCollapsed((c) => !c)}
+              title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+              aria-label={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+            >
+              {sidebarCollapsed ? "›" : "‹"}
+            </button>
             <section className="content">
               {selectedProjectId ? (
                 <ProjectView projectId={selectedProjectId} />

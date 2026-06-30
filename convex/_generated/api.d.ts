@@ -13,6 +13,7 @@ import type * as aiAgent from "../aiAgent.js";
 import type * as aiSummaries from "../aiSummaries.js";
 import type * as attachments from "../attachments.js";
 import type * as auth from "../auth.js";
+import type * as comments from "../comments.js";
 import type * as embeddings from "../embeddings.js";
 import type * as epics from "../epics.js";
 import type * as evals from "../evals.js";
@@ -35,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   aiSummaries: typeof aiSummaries;
   attachments: typeof attachments;
   auth: typeof auth;
+  comments: typeof comments;
   embeddings: typeof embeddings;
   epics: typeof epics;
   evals: typeof evals;

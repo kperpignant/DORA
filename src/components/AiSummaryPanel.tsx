@@ -6,6 +6,7 @@ import { PriorityBadge } from "./PriorityBadge";
 import { SeverityBadge } from "./SeverityBadge";
 import { StatusBadge } from "./StatusBadge";
 import { UserAvatar } from "./UserAvatar";
+import { TagBadge } from "./TagBadge";
 import { formatUserLabel } from "../lib/formatUserLabel";
 
 interface IssueWithAssignee extends Doc<"issues"> {
@@ -21,6 +22,7 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
   const applySeverity = useMutation(api.aiSummaries.applySuggestedSeverity);
   const applyPriority = useMutation(api.aiSummaries.applySuggestedPriority);
   const applyAssignee = useMutation(api.aiSummaries.applySuggestedAssignee);
+  const applyTags = useMutation(api.aiSummaries.applySuggestedTags);
   const applyAll = useMutation(api.aiSummaries.applyAllSuggestions);
   const users = useQuery(api.users.listForProject, { projectId: issue.projectId });
 
@@ -69,7 +71,11 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
     ai?.suggestedPriority && issue.priority !== ai.suggestedPriority;
   const assigneeDiffers =
     ai?.suggestedAssigneeId && issue.assigneeId !== ai.suggestedAssigneeId;
-  const anyDiff = severityDiffers || priorityDiffers || assigneeDiffers;
+  const existingTags = new Set(issue.tags ?? []);
+  const tagsDiffers =
+    ai?.suggestedTags &&
+    ai.suggestedTags.some((tag) => !existingTags.has(tag));
+  const anyDiff = severityDiffers || priorityDiffers || assigneeDiffers || tagsDiffers;
 
   const liveSteps = ai?.steps ?? [];
 
@@ -270,6 +276,33 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
                     {ai.suggestedAssigneeReason}
                   </p>
                 )}
+              </div>
+            )}
+
+            {ai.suggestedTags && ai.suggestedTags.length > 0 && (
+              <div className="ai-summary-row">
+                <span className="ai-summary-label">Suggested tags</span>
+                <div className="ai-summary-badges">
+                  {ai.suggestedTags.map((tag) => (
+                    <TagBadge key={tag} tag={tag} />
+                  ))}
+                  {tagsDiffers ? (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-tiny"
+                      onClick={() =>
+                        guard(() => applyTags({ issueId: issue._id }))
+                      }
+                      disabled={busy}
+                    >
+                      Apply
+                    </button>
+                  ) : (
+                    <span className="ai-summary-synced" title="Issue already has these tags">
+                      On issue
+                    </span>
+                  )}
+                </div>
               </div>
             )}
           </div>

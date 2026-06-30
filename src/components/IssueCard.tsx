@@ -5,9 +5,11 @@ import { TypeBadge } from "./TypeBadge";
 import { SeverityBadge } from "./SeverityBadge";
 import { TagBadge } from "./TagBadge";
 import { UserAvatar } from "./UserAvatar";
+import { EpicBadge } from "./EpicBadge";
 
 interface IssueWithAssignee extends Doc<"issues"> {
   assignee?: Doc<"users"> | null;
+  epic?: Doc<"epics"> | null;
 }
 
 interface IssueCardProps {
@@ -34,6 +36,9 @@ export function IssueCard({ issue, projectKey, onView, onDelete }: IssueCardProp
           </span>
         </div>
         <div className="issue-badges">
+          {issue.epic && (
+            <EpicBadge epic={issue.epic} projectKey={projectKey} />
+          )}
           {issue.type === "bug" && issue.severity && (
             <SeverityBadge severity={issue.severity} />
           )}

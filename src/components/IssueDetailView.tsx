@@ -13,9 +13,12 @@ import { IssueForm } from "./IssueForm";
 import { AiSummaryPanel } from "./AiSummaryPanel";
 import { IssueAttachments } from "./IssueAttachments";
 import { CodeBlock } from "./CodeBlock";
+import { CommentsSection } from "./CommentsSection";
+import { EpicBadge } from "./EpicBadge";
 
 interface IssueWithAssignee extends Doc<"issues"> {
   assignee?: Doc<"users"> | null;
+  epic?: Doc<"epics"> | null;
 }
 
 interface IssueDetailViewProps {
@@ -28,6 +31,7 @@ export function IssueDetailView({ issue, projectKey, onBack }: IssueDetailViewPr
   const [isEditing, setIsEditing] = useState(false);
   const deleteIssue = useMutation(api.issues.remove);
   const live = useQuery(api.issues.get, { id: issue._id });
+  const currentUser = useQuery(api.users.current);
 
   const handleDelete = async () => {
     if (confirm("Are you sure you want to delete this issue?")) {
@@ -87,6 +91,9 @@ export function IssueDetailView({ issue, projectKey, onBack }: IssueDetailViewPr
               {displayIssue.type === "bug" && displayIssue.severity && (
                 <SeverityBadge severity={displayIssue.severity} />
               )}
+              {displayIssue.epic && (
+                <EpicBadge epic={displayIssue.epic} projectKey={projectKey} />
+              )}
             </div>
 
             <div className="issue-detail-section">
@@ -133,6 +140,14 @@ export function IssueDetailView({ issue, projectKey, onBack }: IssueDetailViewPr
             <div className="issue-detail-section">
               <h3>Attachments</h3>
               <IssueAttachments issueId={displayIssue._id} />
+            </div>
+
+            <div className="issue-detail-section">
+              <h3>Comments</h3>
+              <CommentsSection
+                issueId={displayIssue._id}
+                currentUserId={currentUser?._id}
+              />
             </div>
 
             {/* Type-specific sections */}

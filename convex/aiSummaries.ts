@@ -72,6 +72,7 @@ export const saveResult = internalMutation({
     possibleSolutions: v.optional(v.array(v.string())),
     suggestedAssigneeId: v.optional(v.id("users")),
     suggestedAssigneeReason: v.optional(v.string()),
+    suggestedTags: v.optional(v.array(v.string())),
     similarIssues: v.optional(v.array(similarIssueValidator)),
     errorMessage: v.optional(v.string()),
     model: v.optional(v.string()),
@@ -109,6 +110,7 @@ export const saveResult = internalMutation({
         possibleSolutions: rest.possibleSolutions,
         suggestedAssigneeId: rest.suggestedAssigneeId,
         suggestedAssigneeReason: rest.suggestedAssigneeReason,
+        suggestedTags: rest.suggestedTags,
         similarIssues: rest.similarIssues,
         steps,
         model: rest.model,
@@ -174,6 +176,7 @@ export const generate = internalAction({
       possibleSolutions: result.possibleSolutions,
       suggestedAssigneeId: result.suggestedAssigneeId,
       suggestedAssigneeReason: result.suggestedAssigneeReason,
+      suggestedTags: result.suggestedTags,
       similarIssues: result.similarIssues,
       model: result.model,
       latencyMs,
@@ -254,6 +257,22 @@ export const applySuggestedAssignee = mutation({
   },
 });
 
+export const applySuggestedTags = mutation({
+  args: { issueId: v.id("issues") },
+  handler: async (ctx, { issueId }) => {
+    const issue = await ctx.db.get(issueId);
+    if (!issue) throw new Error("Issue not found");
+    await requireProjectAccess(ctx, issue.projectId);
+    const suggested = issue.aiSummary?.suggestedTags;
+    if (!suggested || suggested.length === 0) {
+      throw new Error("No suggested tags to apply");
+    }
+    const existing = issue.tags ?? [];
+    const merged = [...new Set([...existing, ...suggested])];
+    await ctx.db.patch(issueId, { tags: merged, updatedAt: Date.now() });
+  },
+});
+
 export const applyAllSuggestions = mutation({
   args: { issueId: v.id("issues") },
   handler: async (ctx, { issueId }) => {
@@ -268,6 +287,10 @@ export const applyAllSuggestions = mutation({
     if (ai.suggestedAssigneeId) {
       const user = await ctx.db.get(ai.suggestedAssigneeId as Id<"users">);
       if (user) patch.assigneeId = ai.suggestedAssigneeId;
+    }
+    if (ai.suggestedTags && ai.suggestedTags.length > 0) {
+      const existing = issue.tags ?? [];
+      patch.tags = [...new Set([...existing, ...ai.suggestedTags])];
     }
     await ctx.db.patch(issueId, patch);
     if (typeof patch.assigneeId === "string") {

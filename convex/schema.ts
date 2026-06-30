@@ -127,6 +127,7 @@ export default defineSchema({
         // Suggested assignee derived from prior closers of similar bugs.
         suggestedAssigneeId: v.optional(v.id("users")),
         suggestedAssigneeReason: v.optional(v.string()),
+        suggestedTags: v.optional(v.array(v.string())),
         // Related/duplicate/regression candidates the agent surfaced via RAG.
         similarIssues: v.optional(
           v.array(
@@ -205,5 +206,14 @@ export default defineSchema({
     ),
     uploadedBy: v.id("users"),
     uploadedAt: v.number(),
+  }).index("by_issue", ["issueId"]),
+
+  comments: defineTable({
+    issueId: v.id("issues"),
+    projectId: v.id("projects"),
+    authorId: v.id("users"),
+    body: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
   }).index("by_issue", ["issueId"]),
 });
