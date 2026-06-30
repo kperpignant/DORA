@@ -216,4 +216,26 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_issue", ["issueId"]),
+
+  issueHistory: defineTable({
+    issueId: v.id("issues"),
+    projectId: v.id("projects"),
+    userId: v.optional(v.id("users")),
+    fromStatus: v.optional(
+      v.union(
+        v.literal("todo"),
+        v.literal("in_progress"),
+        v.literal("blocked"),
+        v.literal("done")
+      )
+    ),
+    toStatus: v.union(
+      v.literal("todo"),
+      v.literal("in_progress"),
+      v.literal("blocked"),
+      v.literal("done")
+    ),
+    note: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_issue", ["issueId"]),
 });

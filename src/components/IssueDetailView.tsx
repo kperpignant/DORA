@@ -15,6 +15,7 @@ import { IssueAttachments } from "./IssueAttachments";
 import { CodeBlock } from "./CodeBlock";
 import { CommentsSection } from "./CommentsSection";
 import { EpicBadge } from "./EpicBadge";
+import { IssueHistory } from "./IssueHistory";
 
 interface IssueWithAssignee extends Doc<"issues"> {
   assignee?: Doc<"users"> | null;
@@ -150,6 +151,11 @@ export function IssueDetailView({ issue, projectKey, onBack }: IssueDetailViewPr
               />
             </div>
 
+            <div className="issue-detail-section">
+              <h3>History</h3>
+              <IssueHistory issueId={displayIssue._id} />
+            </div>
+
             {/* Type-specific sections */}
             {displayIssue.type === "task" && (
               <div className="issue-detail-section">
@@ -218,11 +224,9 @@ export function IssueDetailView({ issue, projectKey, onBack }: IssueDetailViewPr
           </div>
         </div>
 
-        {displayIssue.type === "bug" && (
-          <aside className="issue-detail-aside">
-            <AiSummaryPanel issue={displayIssue} />
-          </aside>
-        )}
+        <aside className="issue-detail-aside">
+          <AiSummaryPanel issue={displayIssue} />
+        </aside>
       </div>
 
       {isEditing && (

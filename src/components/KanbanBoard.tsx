@@ -9,6 +9,8 @@ import { KanbanCard } from "./KanbanCard";
 import { UserAvatar } from "./UserAvatar";
 import { useDroppable } from "@dnd-kit/core";
 import { formatUserLabel } from "../lib/formatUserLabel";
+import { getStatusChangeVariant } from "../lib/statusChange";
+import { StatusChangeDialog } from "./StatusChangeDialog";
 
 type Status = "todo" | "in_progress" | "blocked" | "done";
 
@@ -78,6 +80,11 @@ export function KanbanBoard({ projectId, projectKey, searchQuery = "", onViewIss
   const clearAssignee = useMutation(api.issues.clearAssignee);
 
   const [activeIssue, setActiveIssue] = useState<IssueWithAssignee | null>(null);
+  const [pendingStatusChange, setPendingStatusChange] = useState<{
+    issueId: Id<"issues">;
+    to: Status;
+    variant: "done" | "reopen";
+  } | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -120,10 +127,19 @@ export function KanbanBoard({ projectId, projectKey, searchQuery = "", onViewIss
     if (["todo", "in_progress", "blocked", "done"].includes(overId)) {
       const newStatus = overId as Status;
       if (issue.status !== newStatus) {
-        await updateIssue({
-          id: issue._id,
-          status: newStatus,
-        });
+        const variant = getStatusChangeVariant(issue.status, newStatus);
+        if (variant) {
+          setPendingStatusChange({
+            issueId: issue._id,
+            to: newStatus,
+            variant,
+          });
+        } else {
+          await updateIssue({
+            id: issue._id,
+            status: newStatus,
+          });
+        }
       }
       return;
     }
@@ -214,6 +230,21 @@ export function KanbanBoard({ projectId, projectKey, searchQuery = "", onViewIss
           />
         )}
       </DragOverlay>
+
+      {pendingStatusChange && (
+        <StatusChangeDialog
+          variant={pendingStatusChange.variant}
+          onCancel={() => setPendingStatusChange(null)}
+          onConfirm={async (note) => {
+            await updateIssue({
+              id: pendingStatusChange.issueId,
+              status: pendingStatusChange.to,
+              statusNote: note || undefined,
+            });
+            setPendingStatusChange(null);
+          }}
+        />
+      )}
     </DndContext>
   );
 }

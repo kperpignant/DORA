@@ -44,17 +44,23 @@ export function IssueList({ projectId, projectKey, searchQuery = "", onViewIssue
   const [assigneeFilter, setAssigneeFilter] = useState<AssigneeFilter>(
     lockedAssigneeId ?? "all"
   );
+  const [hideDone, setHideDone] = useState(false);
 
   const filteredIssues = useMemo(() => {
     if (!issues) return [];
 
-    const effectiveFilter = lockedAssigneeId ?? assigneeFilter;
-    if (effectiveFilter === "all") return issues;
-    if (effectiveFilter === "unassigned") {
-      return issues.filter((i) => !i.assigneeId);
+    let result = issues;
+    if (hideDone) {
+      result = result.filter((i) => i.status !== "done");
     }
-    return issues.filter((i) => i.assigneeId === effectiveFilter);
-  }, [issues, assigneeFilter, lockedAssigneeId]);
+
+    const effectiveFilter = lockedAssigneeId ?? assigneeFilter;
+    if (effectiveFilter === "all") return result;
+    if (effectiveFilter === "unassigned") {
+      return result.filter((i) => !i.assigneeId);
+    }
+    return result.filter((i) => i.assigneeId === effectiveFilter);
+  }, [issues, assigneeFilter, lockedAssigneeId, hideDone]);
 
   const sortedIssues = useMemo(() => {
     if (!filteredIssues.length) return [];
@@ -97,6 +103,14 @@ export function IssueList({ projectId, projectKey, searchQuery = "", onViewIssue
         </h3>
         <div className="issue-list-controls">
           <div className="sort-controls">
+            <label className="filter-checkbox" title="Hide closed issues">
+              <input
+                type="checkbox"
+                checked={hideDone}
+                onChange={(e) => setHideDone(e.target.checked)}
+              />
+              Hide done
+            </label>
             {!lockedAssigneeId && (
               <select
                 className="sort-select"

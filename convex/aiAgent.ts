@@ -243,7 +243,7 @@ const SEVERITY_VALUES = ["critical", "major", "minor", "trivial"] as const;
 const PRIORITY_VALUES = ["low", "medium", "high"] as const;
 const RELATION_VALUES = ["duplicate", "related", "regression"] as const;
 
-const TOOLS: ToolDef[] = [
+const TOOLS_BASE: ToolDef[] = [
   {
     type: "function",
     function: {
@@ -256,7 +256,7 @@ const TOOLS: ToolDef[] = [
           query: {
             type: "string",
             description:
-              "Free-form natural-language query describing the bug or symptom you're looking for.",
+              "Free-form natural-language query describing the issue, symptom, or work area you're looking for.",
           },
           k: {
             type: "integer",
@@ -291,7 +291,7 @@ const TOOLS: ToolDef[] = [
     function: {
       name: "get_epic",
       description:
-        "Fetch an epic (a feature grouping of issues) by its epic number within this project, including the issues that belong to it. Use this to understand the broader feature the bug is part of and to spot related work, duplicates, or regressions within the same epic.",
+        "Fetch an epic (a feature grouping of issues) by its epic number within this project, including the issues that belong to it. Use this to understand the broader feature scope and spot related work.",
       parameters: {
         type: "object",
         properties: {
@@ -307,7 +307,7 @@ const TOOLS: ToolDef[] = [
     function: {
       name: "propose_assignee",
       description:
-        "Given the IDs of similar past issues already returned by search_similar_issues, propose the best assignee based on who closed the most similar bugs.",
+        "Given the IDs of similar past issues already returned by search_similar_issues, propose the best assignee based on who worked on the most similar issues.",
       parameters: {
         type: "object",
         properties: {
@@ -323,12 +323,17 @@ const TOOLS: ToolDef[] = [
       },
     },
   },
-  {
+];
+
+function buildFinalizeTool(issueType: "bug" | "task"): ToolDef {
+  const isBug = issueType === "bug";
+  return {
     type: "function",
     function: {
       name: "finalize_triage",
-      description:
-        "Emit the final triage decision. Call this exactly once when you have enough information. After this call, your work is done.",
+      description: isBug
+        ? "Emit the final triage decision. Call this exactly once when you have enough information. After this call, your work is done."
+        : "Emit the final triage suggestions for this task. Call this exactly once when you have enough information. After this call, your work is done.",
       parameters: {
         type: "object",
         properties: {
@@ -336,19 +341,23 @@ const TOOLS: ToolDef[] = [
           suggested_priority: { type: "string", enum: [...PRIORITY_VALUES] },
           reasoning: {
             type: "string",
-            description:
-              "Concise explanation of why you chose this severity/priority, what risks you see, and what assumptions you made.",
+            description: isBug
+              ? "Concise explanation of why you chose this severity/priority, what risks you see, and what assumptions you made."
+              : "Concise explanation of related bugs found, assignee rationale, and tag choices.",
           },
           edge_cases: {
             type: "array",
             items: { type: "string" },
-            description:
-              "Concrete edge cases, regression areas, and scenarios that should be tested.",
+            description: isBug
+              ? "Concrete edge cases, regression areas, and scenarios that should be tested."
+              : "Optional risks or follow-up areas to watch when completing this task.",
           },
           possible_solutions: {
             type: "array",
             items: { type: "string" },
-            description: "Concrete fix approaches or investigations to try.",
+            description: isBug
+              ? "Concrete fix approaches or investigations to try."
+              : "Optional implementation approaches or investigations.",
           },
           suggested_assignee_user_id: {
             type: "string",
@@ -363,12 +372,13 @@ const TOOLS: ToolDef[] = [
             type: "array",
             items: { type: "string" },
             description:
-              "Suggested tags to categorize this bug (e.g. area, component, symptom). Use lowercase, concise labels.",
+              "Suggested tags to categorize this issue (e.g. area, component). Use lowercase, concise labels.",
           },
           related_issues: {
             type: "array",
-            description:
-              "Related/duplicate/regression candidates with optional relation type.",
+            description: isBug
+              ? "Related/duplicate/regression candidates with optional relation type."
+              : "Related bugs this task may address, with optional relation type.",
             items: {
               type: "object",
               properties: {
@@ -381,16 +391,18 @@ const TOOLS: ToolDef[] = [
             },
           },
         },
-        required: [
-          "suggested_severity",
-          "suggested_priority",
-          "reasoning",
-        ],
+        required: isBug
+          ? ["suggested_severity", "suggested_priority", "reasoning"]
+          : ["reasoning"],
         additionalProperties: false,
       },
     },
-  },
-];
+  };
+}
+
+function buildTools(issueType: "bug" | "task"): ToolDef[] {
+  return [...TOOLS_BASE, buildFinalizeTool(issueType)];
+}
 
 // ---------------------------------------------------------------------------
 // Tool implementations (executed in the action runtime)
@@ -429,7 +441,8 @@ async function toolSearchSimilarIssues(
   args: { query: string; k?: number },
   projectId: Id<"projects">,
   excludeIssueId: Id<"issues">,
-  state: AgentState
+  state: AgentState,
+  issueType: "bug" | "task"
 ): Promise<{ results: Array<Record<string, unknown>>; note?: string }> {
   if (!process.env.OPENAI_API_KEY) {
     return {
@@ -444,21 +457,26 @@ async function toolSearchSimilarIssues(
   const k = Math.min(Math.max(args.k ?? SIMILAR_TOP_K, 1), 10);
   const raw = await ctx.vectorSearch("issues", "by_embedding", {
     vector: queryVec,
-    limit: k + 1, // +1 because we'll filter out the current issue
+    limit: k + 1,
     filter: (q) => q.eq("projectId", projectId),
   });
   const filtered = raw
     .filter((r) => r._id !== excludeIssueId)
     .filter((r) => r._score >= SIMILAR_THRESHOLD)
-    .slice(0, k);
+    .slice(0, k + 5);
   const hydrated = await ctx.runQuery(internal.aiAgent.hydrateSimilarHits, {
     hits: filtered.map((h) => ({ _id: h._id, _score: h._score })),
   });
-  for (const hit of hydrated) {
+  const typedHits =
+    issueType === "task"
+      ? hydrated.filter((h) => h.type === "bug")
+      : hydrated;
+  const limited = typedHits.slice(0, k);
+  for (const hit of limited) {
     state.similarByNumber.set(hit.issueNumber, hit);
   }
   return {
-    results: (hydrated as SimilarHit[]).map((h: SimilarHit) => ({
+    results: limited.map((h: SimilarHit) => ({
       issue_number: h.issueNumber,
       title: h.title,
       type: h.type,
@@ -614,7 +632,30 @@ export type AgentResult = {
   tokensOut: number;
 };
 
-function buildSystemPrompt(): string {
+function buildSystemPrompt(issueType: "bug" | "task"): string {
+  if (issueType === "task") {
+    return [
+      "You are DORA's task-triage agent. Your job is to analyze a single incoming task and suggest related bugs, a likely assignee, and appropriate tags.",
+      "",
+      "You have access to five tools:",
+      "  - search_similar_issues: search this project's bug history for bugs related to this task's area of work.",
+      "  - get_issue: fetch full details of one issue by its number.",
+      "  - get_epic: fetch a feature epic by its number, including grouped issues.",
+      "  - propose_assignee: given issue numbers, rank past assignees.",
+      "  - finalize_triage: emit your final structured suggestions. You MUST call this exactly once to finish.",
+      "",
+      "Strategy:",
+      "  1. Start by calling search_similar_issues with a focused query about the task's area.",
+      "  2. Review hits for bugs this task might fix or relate to. Call get_issue on promising matches.",
+      "  3. If the task belongs to an epic, consider get_epic for sibling context.",
+      "  4. Call propose_assignee with relevant issue numbers.",
+      "  5. Call finalize_triage with related_issues (bugs only), suggested_tags (2-5), and optional assignee.",
+      "",
+      "Be decisive. Don't make more than 2 search_similar_issues calls.",
+      "Keep reasoning concise.",
+    ].join("\n");
+  }
+
   return [
     "You are DORA's bug-triage agent. Your job is to triage a single incoming bug ticket.",
     "",
@@ -650,12 +691,14 @@ function buildUserPrompt(
     };
   },
   issue: {
+    type: "bug" | "task";
     issueNumber: number;
     title: string;
     description: string;
     priority: "low" | "medium" | "high";
     severity?: "critical" | "major" | "minor" | "trivial";
     tags?: string[];
+    estimate?: string;
     stepsToReproduce?: string;
     expectedResult?: string;
     actualResult?: string;
@@ -682,7 +725,7 @@ function buildUserPrompt(
     lines.push(
       "",
       `# Epic context: ${epic.name} (E${epic.epicNumber}, status: ${epic.status})`,
-      "This bug is part of the above feature epic.",
+      `This ${issue.type} is part of the above feature epic.`,
       epic.description?.trim()
         ? `Epic description: ${epic.description.trim()}`
         : "Epic description: (none)"
@@ -698,6 +741,23 @@ function buildUserPrompt(
         );
       }
     }
+  }
+
+  if (issue.type === "task") {
+    lines.push(
+      "",
+      `# Incoming task (#${issue.issueNumber})`,
+      `Title: ${issue.title}`,
+      `Priority: ${issue.priority}`,
+      `Estimate: ${issue.estimate?.trim() || "(none)"}`,
+      `Tags: ${issue.tags?.length ? issue.tags.join(", ") : "(none)"}`,
+      "",
+      "## Description",
+      issue.description || "(none)",
+      "",
+      "Begin by searching for related bugs in this project."
+    );
+    return lines.filter(Boolean).join("\n");
   }
 
   lines.push(
@@ -856,20 +916,23 @@ export async function runTriageAgent(args: {
 }): Promise<AgentResult> {
   const { ctx, issue, project, epic, apiKey, model, record } = args;
   const state: AgentState = { similarByNumber: new Map() };
+  const tools = buildTools(issue.type);
 
   const messages: ChatMessage[] = [
-    { role: "system", content: buildSystemPrompt() },
+    { role: "system", content: buildSystemPrompt(issue.type) },
     {
       role: "user",
       content: buildUserPrompt(
         project,
         {
+          type: issue.type,
           issueNumber: issue.issueNumber,
           title: issue.title,
           description: issue.description,
           priority: issue.priority,
           severity: issue.severity,
           tags: issue.tags,
+          estimate: issue.estimate,
           stepsToReproduce: issue.stepsToReproduce,
           expectedResult: issue.expectedResult,
           actualResult: issue.actualResult,
@@ -888,7 +951,7 @@ export async function runTriageAgent(args: {
       apiKey,
       model,
       messages,
-      tools: TOOLS,
+      tools,
     });
     tokensIn += ti;
     tokensOut += to;
@@ -952,7 +1015,8 @@ export async function runTriageAgent(args: {
             parsedArgs as { query: string; k?: number },
             issue.projectId,
             issue._id,
-            state
+            state,
+            issue.type
           );
         } else if (name === "get_issue") {
           toolOutput = await toolGetIssue(
@@ -1031,11 +1095,21 @@ export async function runTriageAgent(args: {
     };
   }
 
-  if (!parsed.suggestedSeverity || !parsed.suggestedPriority) {
+  if (issue.type === "bug") {
+    if (!parsed.suggestedSeverity || !parsed.suggestedPriority) {
+      return {
+        status: "failed",
+        errorMessage:
+          "finalize_triage missing required suggested_severity or suggested_priority.",
+        model,
+        tokensIn,
+        tokensOut,
+      };
+    }
+  } else if (!parsed.reasoning) {
     return {
       status: "failed",
-      errorMessage:
-        "finalize_triage missing required suggested_severity or suggested_priority.",
+      errorMessage: "finalize_triage missing required reasoning.",
       model,
       tokensIn,
       tokensOut,

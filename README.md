@@ -9,6 +9,8 @@ DORA is a JIRA-style project tracker with an **agentic AI bug-triage system** bu
 
 The user can then **apply any of the agent's suggestions with one click**, or apply them all. The full agent trace (every tool call and its result) is persisted on the issue for transparency and debugging.
 
+For **tasks**, the same agent can be run manually from the issue detail view to suggest related bugs, an assignee, and tags — it does not run automatically on task creation.
+
 This repo was built as a submission for the **Klaviyo AI Builder Resident** program.
 
 ---
@@ -49,6 +51,14 @@ When a bug is filed:
 3. The agent runs a tool-use loop (max 6 steps). Every tool call and result is streamed into `issue.aiSummary.steps`, so the AI panel in the UI updates live as the agent thinks.
 4. When the agent calls `finalize_triage`, the structured result is persisted: suggested severity, suggested priority, reasoning, edge cases, possible solutions, suggested assignee, and a list of similar past issues annotated with their relationship (duplicate / related / regression).
 5. The user sees a panel with one-click **Apply** buttons for each suggestion, or **Apply all** to accept everything.
+
+For **tasks**, open the issue and click **Run agent** in the AI panel. The agent searches for related bugs, suggests tags, and may recommend an assignee based on who worked on similar issues. Task triage is never auto-scheduled.
+
+### Issue workflow
+
+- **List / Mine filters** — filter by assignee and optionally hide done (closed) issues.
+- **Status history** — every status change is recorded on the issue with who made it, when, and any note they provided.
+- **Done / reopen prompts** — moving an issue to Done (from Kanban or the edit form) prompts for what changed; moving it out of Done prompts for why it is being reopened. Notes are optional and appear in the history timeline.
 
 ### What role AI plays
 
@@ -147,11 +157,11 @@ A non-AI solution to "bug triage" looks like a rules engine: "if title contains 
 - `aiAgent.ts` — The agent loop, tool definitions, OpenRouter call, finalize parsing, and the `runAgentForIssue` entrypoint. Pure — no DB writes outside of `appendStep`. Designed to also be called from the eval harness in non-recording mode.
 - `aiSummaries.ts` — The user-facing surface: schedules generation, persists results, and exposes one-click `applySuggestedSeverity` / `applySuggestedPriority` / `applySuggestedAssignee` / `applyAllSuggestions` mutations.
 - `evals.ts` — The eval harness: seeds a fixture project from `evals/bugs.json`, embeds everything, then runs each bug through both the baseline single-shot path and the agent path, measuring agreement against ground-truth labels.
-- `issues.ts` / `projects.ts` / `users.ts` / `auth.ts` — the CRUD plumbing of the tracker itself.
+- `issues.ts` / `projects.ts` / `users.ts` / `auth.ts` — the CRUD plumbing of the tracker itself. Issues include status history (`issueHistory` table) and support optional notes on Done/reopen transitions.
 
 ### Frontend (`src/`)
 
-- `components/AiSummaryPanel.tsx` — The big UI change. Shows status (queued / thinking / failed / done), suggestions with diff against current values, apply-action buttons, similar-issues list with relation labels, agent trace (expandable), and a footer with model / latency / token counts.
+- `components/AiSummaryPanel.tsx` — The big UI change. Shows status (queued / thinking / failed / done), suggestions with diff against current values, apply-action buttons, similar-issues list with relation labels, agent trace (expandable), and a footer with model / latency / token counts. Available for both bugs (auto-triage on create) and tasks (manual run only).
 - `components/ProjectSettingsForm.tsx` — Adds a "Backfill embeddings" button so users with pre-existing data can opt into RAG with one click.
 
 ### Reactive UI without polling

@@ -59,6 +59,7 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
 
   const ai = issue.aiSummary;
   const status = ai?.status;
+  const isBug = issue.type === "bug";
   const formatTime = (ts: number) => new Date(ts).toLocaleString();
 
   const suggestedAssignee = ai?.suggestedAssigneeId
@@ -66,7 +67,7 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
     : null;
 
   const severityDiffers =
-    ai?.suggestedSeverity && issue.severity !== ai.suggestedSeverity;
+    isBug && ai?.suggestedSeverity && issue.severity !== ai.suggestedSeverity;
   const priorityDiffers =
     ai?.suggestedPriority && issue.priority !== ai.suggestedPriority;
   const assigneeDiffers =
@@ -98,8 +99,9 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
       {!ai && (
         <div className="ai-summary-body">
           <p className="ai-summary-muted">
-            Run the agent to get a triage decision, similar past issues (RAG),
-            a suggested assignee, and concrete fix ideas.
+            {isBug
+              ? "Run the agent to get a triage decision, similar past issues (RAG), a suggested assignee, and concrete fix ideas."
+              : "Run the agent to find related bugs, a suggested assignee, and tags for this task."}
           </p>
           <button
             type="button"
@@ -178,6 +180,7 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
               Use <strong>Apply</strong> (or <strong>Apply all</strong> above) to
               copy the agent&rsquo;s values onto the issue.
             </p>
+            {isBug && (
             <div className="ai-summary-row">
               <span className="ai-summary-label">Suggested severity</span>
               {ai.suggestedSeverity ? (
@@ -213,7 +216,9 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
                 <span className="ai-summary-muted">—</span>
               )}
             </div>
+            )}
 
+            {isBug && (
             <div className="ai-summary-row">
               <span className="ai-summary-label">Suggested priority</span>
               {ai.suggestedPriority ? (
@@ -243,6 +248,7 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
                 <span className="ai-summary-muted">—</span>
               )}
             </div>
+            )}
 
             {suggestedAssignee && (
               <div className="ai-summary-row">
@@ -309,7 +315,7 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
 
           {ai.similarIssues && ai.similarIssues.length > 0 && (
             <div className="ai-summary-section">
-              <h4>Similar past issues (RAG)</h4>
+              <h4>{isBug ? "Similar past issues (RAG)" : "Related bugs (RAG)"}</h4>
               <ul className="ai-similar-list">
                 {ai.similarIssues.map((s) => (
                   <li key={s.issueId} className="ai-similar-item">

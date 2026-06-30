@@ -128,7 +128,7 @@ export const scheduleGeneration = internalMutation({
   args: { issueId: v.id("issues") },
   handler: async (ctx, { issueId }) => {
     const issue = await ctx.db.get(issueId);
-    if (!issue || issue.type !== "bug") return;
+    if (!issue) return;
     await ctx.db.patch(issueId, {
       aiSummary: { status: "pending" },
       updatedAt: Date.now(),
@@ -282,7 +282,9 @@ export const applyAllSuggestions = mutation({
     const ai = issue.aiSummary;
     if (!ai || ai.status !== "complete") return;
     const patch: Record<string, unknown> = { updatedAt: Date.now() };
-    if (ai.suggestedSeverity) patch.severity = ai.suggestedSeverity;
+    if (issue.type === "bug" && ai.suggestedSeverity) {
+      patch.severity = ai.suggestedSeverity;
+    }
     if (ai.suggestedPriority) patch.priority = ai.suggestedPriority;
     if (ai.suggestedAssigneeId) {
       const user = await ctx.db.get(ai.suggestedAssigneeId as Id<"users">);

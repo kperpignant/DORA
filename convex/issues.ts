@@ -1,9 +1,33 @@
 import { v } from "convex/values";
-import { action, internalQuery, mutation, query, type QueryCtx } from "./_generated/server";
+import { action, internalQuery, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { scheduleAssignmentEmail } from "./notifications";
 import { requireAllowedActionUser, requireProjectAccess } from "./security";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
+
+type IssueStatus = "todo" | "in_progress" | "blocked" | "done";
+
+async function recordStatusHistory(
+  ctx: MutationCtx,
+  args: {
+    issueId: Id<"issues">;
+    projectId: Id<"projects">;
+    userId: Id<"users">;
+    fromStatus?: IssueStatus;
+    toStatus: IssueStatus;
+    note?: string;
+  }
+) {
+  await ctx.db.insert("issueHistory", {
+    issueId: args.issueId,
+    projectId: args.projectId,
+    userId: args.userId,
+    fromStatus: args.fromStatus,
+    toStatus: args.toStatus,
+    note: args.note?.trim() || undefined,
+    createdAt: Date.now(),
+  });
+}
 
 async function attachAssigneeAndEpic(ctx: QueryCtx, issue: Doc<"issues">) {
   const assignee = issue.assigneeId
@@ -189,6 +213,13 @@ export const create = mutation({
       });
     }
 
+    await recordStatusHistory(ctx, {
+      issueId: id,
+      projectId: args.projectId,
+      userId: user._id,
+      toStatus: args.status,
+    });
+
     return id;
   },
 });
@@ -220,13 +251,14 @@ export const update = mutation({
     tags: v.optional(v.array(v.string())),
     assigneeId: v.optional(v.id("users")),
     codeLog: v.optional(v.string()),
+    statusNote: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const issue = await ctx.db.get(args.id);
     if (!issue) throw new Error("Issue not found");
     const user = await requireProjectAccess(ctx, issue.projectId);
 
-    const { id, ...updates } = args;
+    const { id, statusNote, ...updates } = args;
 
     const patchData: Record<string, unknown> = {
       updatedAt: Date.now(),
@@ -244,6 +276,20 @@ export const update = mutation({
     if (updates.tags !== undefined) patchData.tags = updates.tags;
     if (updates.assigneeId !== undefined) patchData.assigneeId = updates.assigneeId;
     if (updates.codeLog !== undefined) patchData.codeLog = updates.codeLog;
+
+    if (
+      updates.status !== undefined &&
+      updates.status !== issue.status
+    ) {
+      await recordStatusHistory(ctx, {
+        issueId: id,
+        projectId: issue.projectId,
+        userId: user._id,
+        fromStatus: issue.status,
+        toStatus: updates.status,
+        note: statusNote,
+      });
+    }
 
     await ctx.db.patch(id, patchData);
 
@@ -328,6 +374,38 @@ export const remove = mutation({
       await ctx.db.delete(comment._id);
     }
 
+    const history = await ctx.db
+      .query("issueHistory")
+      .withIndex("by_issue", (q) => q.eq("issueId", args.id))
+      .collect();
+
+    for (const entry of history) {
+      await ctx.db.delete(entry._id);
+    }
+
     await ctx.db.delete(args.id);
+  },
+});
+
+export const listHistory = query({
+  args: { issueId: v.id("issues") },
+  handler: async (ctx, args) => {
+    const issue = await ctx.db.get(args.issueId);
+    if (!issue) return [];
+
+    await requireProjectAccess(ctx, issue.projectId);
+
+    const entries = await ctx.db
+      .query("issueHistory")
+      .withIndex("by_issue", (q) => q.eq("issueId", args.issueId))
+      .order("asc")
+      .collect();
+
+    return await Promise.all(
+      entries.map(async (entry) => {
+        const user = entry.userId ? await ctx.db.get(entry.userId) : null;
+        return { ...entry, user };
+      })
+    );
   },
 });
