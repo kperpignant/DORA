@@ -37,9 +37,62 @@ export function AiSummaryPanel({ issue }: AiSummaryPanelProps) {
 
   const handleRun = async () => {
     setBusy(true);
+    // #region agent log
+    fetch("http://127.0.0.1:7705/ingest/1b382383-a8f3-4b3c-bf0a-8ec5fa27d79f", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "e1c473" },
+      body: JSON.stringify({
+        sessionId: "e1c473",
+        runId: "pre-fix",
+        hypothesisId: "H6",
+        location: "AiSummaryPanel.tsx:handleRun",
+        message: "regenerate start",
+        data: {
+          issueId: issue._id,
+          issueType: issue.type,
+          issueStatus: issue.status,
+          hasAiSummary: Boolean(issue.aiSummary),
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     try {
       await regenerate({ issueId: issue._id });
+      // #region agent log
+      fetch("http://127.0.0.1:7705/ingest/1b382383-a8f3-4b3c-bf0a-8ec5fa27d79f", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "e1c473" },
+        body: JSON.stringify({
+          sessionId: "e1c473",
+          runId: "pre-fix",
+          hypothesisId: "H6",
+          location: "AiSummaryPanel.tsx:handleRun",
+          message: "regenerate success",
+          data: { issueId: issue._id },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
     } catch (e) {
+      // #region agent log
+      fetch("http://127.0.0.1:7705/ingest/1b382383-a8f3-4b3c-bf0a-8ec5fa27d79f", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "e1c473" },
+        body: JSON.stringify({
+          sessionId: "e1c473",
+          runId: "pre-fix",
+          hypothesisId: "H6",
+          location: "AiSummaryPanel.tsx:handleRun",
+          message: "regenerate error",
+          data: {
+            issueId: issue._id,
+            error: e instanceof Error ? e.message : String(e),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       alert(e instanceof Error ? e.message : "Failed to start AI agent");
     } finally {
       setBusy(false);

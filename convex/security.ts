@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import type { ActionCtx, MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 
 const ACCESS_DENIED_MESSAGE = "This Google account is not allowed to access DORA.";
 const BLOCKED_MESSAGE = "This account has been removed from DORA.";
@@ -96,12 +97,14 @@ export async function requireAllowedUser(
 }
 
 export async function requireAllowedActionUser(ctx: ActionCtx): Promise<void> {
+  // #region agent log
   const identity = await ctx.auth.getUserIdentity();
-  if (!identity) {
-    throw new Error("Sign in is required to access DORA.");
-  }
-
-  assertEmailAllowed(identity.email);
+  console.log("[requireAllowedActionUser] identity", {
+    hasIdentity: Boolean(identity),
+    hasJwtEmail: Boolean(identity?.email),
+  });
+  // #endregion
+  await ctx.runQuery(internal.users.assertAllowedForAction, {});
 }
 
 export async function requireAdmin(

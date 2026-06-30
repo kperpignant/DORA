@@ -1,7 +1,15 @@
 import { v } from "convex/values";
-import { query } from "./_generated/server";
+import { internalQuery, query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { isAdmin, isEmailAllowed, requireProjectAccess } from "./security";
+import { isAdmin, isEmailAllowed, requireAllowedUser, requireProjectAccess } from "./security";
+
+/** Used by actions: JWT identity.email is often missing; DB user email is authoritative. */
+export const assertAllowedForAction = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    await requireAllowedUser(ctx);
+  },
+});
 
 export const current = query({
   args: {},
